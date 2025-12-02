@@ -5,6 +5,7 @@ import { WheelPicker } from './components/WheelPicker';
 import { StatsView } from './components/StatsView';
 import { AchievementsView } from './components/AchievementsView';
 import { AiThemeView } from './components/AiThemeView';
+import { DevTools } from './components/DevTools';
 import { 
   TomatoIcon, PlayIcon, XIcon, ClockIcon, ChartIcon, TrophyIcon, MagicIcon
 } from './components/Icons';
@@ -37,7 +38,11 @@ const App = () => {
   
   // Timer Accuracy Refs (Target Timestamp Pattern)
   const endTimeRef = useRef<number | null>(null);   // For Countdown (Pomodoro/Rest)
-  const startTimeRef = useRef<number | null>(null); // For Count-up (Flow)
+  
+  // Flow Mode Accuracy
+  const startTimeRef = useRef<number | null>(null); // Start time of current segment
+  const [accumulatedTime, setAccumulatedTime] = useState(0); // "Piggy bank" for previous segments
+
   const timerInterval = useRef<number | null>(null);
   const encourageTriggeredRef = useRef<boolean>(false);
 
@@ -112,9 +117,12 @@ const App = () => {
 
     if (mode === AppMode.FLOW) {
       if (startTimeRef.current !== null) {
-        const elapsed = Math.floor((now - startTimeRef.current) / 1000);
-        setElapsedTime(elapsed);
-        setTimeLeft(elapsed); // For consistent prop passing
+        // Core Logic: Current Segment Delta + Accumulated Past
+        const currentSegment = Math.floor((now - startTimeRef.current) / 1000);
+        const total = accumulatedTime + currentSegment;
+        
+        setElapsedTime(total);
+        setTimeLeft(total); // For consistent prop passing to TimerDisplay
       }
     } else {
       // Countdown (Pomodoro or Rest)
@@ -139,7 +147,7 @@ const App = () => {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, status, isBreakPhase]); // Add dependencies carefully
+  }, [mode, status, isBreakPhase, accumulatedTime]); // Added accumulatedTime dependency
 
   // Interval setup
   useEffect(() => {
@@ -239,7 +247,6 @@ const App = () => {
       setIsBreakPhase(false);
       
       // Setup Target Timestamp
-      // We rely on the config for the total duration
       const durationSeconds = config.tomatoesToComplete * TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS;
       
       setTimeLeft(durationSeconds);
@@ -249,6 +256,8 @@ const App = () => {
       setStatus(TimerStatus.RUNNING);
     } else {
       // Flow Mode
+      // Reset accumulated time on fresh start
+      setAccumulatedTime(0);
       setElapsedTime(0);
       setTimeLeft(0);
       startTimeRef.current = now;
@@ -263,7 +272,11 @@ const App = () => {
     if (timerInterval.current) clearInterval(timerInterval.current);
 
     if (mode === AppMode.FLOW) {
-       const flowMinutes = Math.floor(elapsedTime / 60);
+       // Final Calculation
+       const currentSegment = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
+       const totalSeconds = accumulatedTime + currentSegment;
+       
+       const flowMinutes = Math.floor(totalSeconds / 60);
        if (flowMinutes > 0) {
           handleSessionEnd('FLOW', flowMinutes, true);
        }
@@ -296,9 +309,12 @@ const App = () => {
   const resetToIdle = (clearFeedback = true) => {
     setStatus(TimerStatus.IDLE);
     setIsBreakPhase(false);
+    
+    // Reset all flow tracking
     setElapsedTime(0);
-    endTimeRef.current = null;
+    setAccumulatedTime(0);
     startTimeRef.current = null;
+    endTimeRef.current = null;
 
     if (mode === AppMode.POMODORO) {
       setTimeLeft(config.tomatoesToComplete * TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS);
@@ -420,6 +436,19 @@ const App = () => {
 
   return (
     <div id="app-scale-wrapper">
+      {/* DevTools injected outside the phone frame */}
+      <DevTools 
+        mode={mode}
+        status={status}
+        setTimeLeft={setTimeLeft}
+        endTimeRef={endTimeRef}
+        setAccumulatedTime={setAccumulatedTime}
+        accumulatedTime={accumulatedTime}
+        onForceComplete={handleTimerComplete}
+        setHistory={setHistory}
+        setUnlockedAchievements={setUnlockedAchievements}
+      />
+
       <div className="iphone-frame">
         <div className={`iphone-screen ${customTheme ? 'bg-transparent' : 'bg-cream'}`}>
             
