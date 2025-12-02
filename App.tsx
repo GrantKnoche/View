@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { TimerDisplay } from './components/TimerDisplay';
 import { WheelPicker } from './components/WheelPicker';
@@ -435,8 +436,8 @@ const App = () => {
   };
 
   return (
-    <div id="app-scale-wrapper">
-      {/* DevTools injected outside the phone frame */}
+    <>
+      {/* DevTools injected outside the phone frame for correct positioning */}
       <DevTools 
         mode={mode}
         status={status}
@@ -449,77 +450,79 @@ const App = () => {
         setUnlockedAchievements={setUnlockedAchievements}
       />
 
-      <div className="iphone-frame">
-        <div className={`iphone-screen ${customTheme ? 'bg-transparent' : 'bg-cream'}`}>
-            
-            {customTheme?.backgroundImage && (
-                <div className="absolute inset-0 z-0">
-                    <img src={`data:image/png;base64,${customTheme.backgroundImage}`} alt="Background" className="w-full h-full object-cover opacity-90" />
-                    <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px]"></div>
-                </div>
-            )}
+      <div id="app-scale-wrapper">
+        <div className="iphone-frame">
+          <div className={`iphone-screen ${customTheme ? 'bg-transparent' : 'bg-cream'}`}>
+              
+              {customTheme?.backgroundImage && (
+                  <div className="absolute inset-0 z-0">
+                      <img src={`data:image/png;base64,${customTheme.backgroundImage}`} alt="Background" className="w-full h-full object-cover opacity-90" />
+                      <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px]"></div>
+                  </div>
+              )}
 
-            {/* Header - iOS 18 Glass */}
-            <header className="w-full flex justify-between items-center px-6 py-3 pt-10 z-20 bg-white/60 backdrop-blur-2xl sticky top-0 border-b border-white/20 transition-colors">
-                <div className="flex items-center gap-2.5">
-                <TomatoIcon className="w-9 h-9 filter drop-shadow-sm" />
-                <h1 className="text-lg font-black text-gray-800 tracking-tight">{t('app_title', lang)}</h1>
-                </div>
-                <button 
-                onClick={toggleLanguage}
-                className="text-[11px] font-bold text-gray-600 bg-white/50 border border-white/40 px-3 py-1.5 rounded-full shadow-sm hover:bg-white transition-all active:scale-95 backdrop-blur-md"
-                >
-                {lang === 'en' ? '中文' : 'EN'}
-                </button>
-            </header>
+              {/* Header - iOS 18 Glass */}
+              <header className="w-full flex justify-between items-center px-6 py-3 pt-10 z-20 bg-white/60 backdrop-blur-2xl sticky top-0 border-b border-white/20 transition-colors">
+                  <div className="flex items-center gap-2.5">
+                  <TomatoIcon className="w-9 h-9 filter drop-shadow-sm" />
+                  <h1 className="text-lg font-black text-gray-800 tracking-tight">{t('app_title', lang)}</h1>
+                  </div>
+                  <button 
+                  onClick={toggleLanguage}
+                  className="text-[11px] font-bold text-gray-600 bg-white/50 border border-white/40 px-3 py-1.5 rounded-full shadow-sm hover:bg-white transition-all active:scale-95 backdrop-blur-md"
+                  >
+                  {lang === 'en' ? '中文' : 'EN'}
+                  </button>
+              </header>
 
-            <main className={`flex-1 w-full relative no-scrollbar flex flex-col z-10 ${currentView === 'TIMER' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-                {showAchievementPopup && (
-                    <div className="fixed top-28 z-[100] animate-bounce-in pointer-events-none left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 text-center">
-                    <div className="bg-white/90 backdrop-blur-xl text-yellow-900 px-5 py-3 rounded-full shadow-glass border border-white/50 inline-flex items-center justify-center gap-2 font-black text-sm">
-                        <span className="text-xl">🏆</span>
-                        <span className="truncate">{t('ach_unlocked', lang)} {showAchievementPopup}</span>
-                    </div>
-                    </div>
-                )}
-                
-                {renderCurrentView()}
-            </main>
+              <main className={`flex-1 w-full relative no-scrollbar flex flex-col z-10 ${currentView === 'TIMER' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+                  {showAchievementPopup && (
+                      <div className="fixed top-28 z-[100] animate-bounce-in pointer-events-none left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 text-center">
+                      <div className="bg-white/90 backdrop-blur-xl text-yellow-900 px-5 py-3 rounded-full shadow-glass border border-white/50 inline-flex items-center justify-center gap-2 font-black text-sm">
+                          <span className="text-xl">🏆</span>
+                          <span className="truncate">{t('ach_unlocked', lang)} {showAchievementPopup}</span>
+                      </div>
+                      </div>
+                  )}
+                  
+                  {renderCurrentView()}
+              </main>
 
-            {/* Bottom Navigation - iOS 18 Glass */}
-            <nav className="w-full bg-white/60 backdrop-blur-2xl border-t border-white/20 pb-4 pt-3 px-6 flex justify-between items-center z-30 shrink-0">
-                <button 
-                onClick={() => changeView('TIMER')}
-                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'TIMER' ? 'text-tomato-500 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
-                >
-                <ClockIcon className="w-6 h-6 mb-1" />
-                <span className="text-[10px] font-bold uppercase tracking-wide">{t('nav_timer', lang)}</span>
-                </button>
-                <button 
-                onClick={() => changeView('STATS')}
-                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'STATS' ? 'text-tomato-500 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
-                >
-                <ChartIcon className="w-6 h-6 mb-1" />
-                <span className="text-[10px] font-bold uppercase tracking-wide">{t('nav_stats', lang)}</span>
-                </button>
-                <button 
-                onClick={() => changeView('ACHIEVEMENTS')}
-                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'ACHIEVEMENTS' ? 'text-tomato-500 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
-                >
-                <TrophyIcon className="w-6 h-6 mb-1" />
-                <span className="text-[10px] font-bold uppercase tracking-wide">{t('nav_achievements', lang)}</span>
-                </button>
-                <button 
-                onClick={() => changeView('AI_THEME')}
-                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'AI_THEME' ? 'text-purple-500 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
-                >
-                <MagicIcon className="w-6 h-6 mb-1" />
-                <span className="text-[10px] font-bold uppercase tracking-wide">{t('nav_ai', lang)}</span>
-                </button>
-            </nav>
+              {/* Bottom Navigation - iOS 18 Glass */}
+              <nav className="w-full bg-white/60 backdrop-blur-2xl border-t border-white/20 pb-4 pt-3 px-6 flex justify-between items-center z-30 shrink-0">
+                  <button 
+                  onClick={() => changeView('TIMER')}
+                  className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'TIMER' ? 'text-tomato-500 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
+                  >
+                  <ClockIcon className="w-6 h-6 mb-1" />
+                  <span className="text-[10px] font-bold uppercase tracking-wide">{t('nav_timer', lang)}</span>
+                  </button>
+                  <button 
+                  onClick={() => changeView('STATS')}
+                  className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'STATS' ? 'text-tomato-500 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
+                  >
+                  <ChartIcon className="w-6 h-6 mb-1" />
+                  <span className="text-[10px] font-bold uppercase tracking-wide">{t('nav_stats', lang)}</span>
+                  </button>
+                  <button 
+                  onClick={() => changeView('ACHIEVEMENTS')}
+                  className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'ACHIEVEMENTS' ? 'text-tomato-500 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
+                  >
+                  <TrophyIcon className="w-6 h-6 mb-1" />
+                  <span className="text-[10px] font-bold uppercase tracking-wide">{t('nav_achievements', lang)}</span>
+                  </button>
+                  <button 
+                  onClick={() => changeView('AI_THEME')}
+                  className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'AI_THEME' ? 'text-purple-500 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
+                  >
+                  <MagicIcon className="w-6 h-6 mb-1" />
+                  <span className="text-[10px] font-bold uppercase tracking-wide">{t('nav_ai', lang)}</span>
+                  </button>
+              </nav>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
