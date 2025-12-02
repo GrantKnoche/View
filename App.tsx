@@ -112,7 +112,6 @@ const App = () => {
       // Pomodoro Mode
       setTimeLeft(prev => {
         // Trigger Encouragement at exactly 2 minutes left (120 seconds)
-        // We use a ref to ensure we only trigger once as we cross the threshold
         if (prev === 121) {
             playEncouragementSound();
             setFeedback({ type: 'ENCOURAGE' });
@@ -176,13 +175,11 @@ const App = () => {
       playCompleteSound();
       
       // Save all tomatoes in the batch
-      // Logic: User completed N tomatoes. We record N separate entries to match statistics count.
       for (let i = 0; i < config.tomatoesToComplete; i++) {
           handleSessionEnd('TOMATO', TOMATO_DURATION_MINUTES, true);
       }
 
       // Calculate Dynamic Rest
-      // Formula: Base (N * 5) + Bonus ((N - 1) * X)
       const N = config.tomatoesToComplete;
       const baseRest = N * BASE_REST_MINUTES;
       const bonusRest = Math.max(0, N - 1) * BONUS_REST_MINUTES;
@@ -198,7 +195,6 @@ const App = () => {
         type: 'REWARD', 
         extraData: { bonus: bonusRest }
       });
-      // Hide reward UI after 4 seconds
       setTimeout(() => setFeedback({ type: null }), 4000);
     }
   };
@@ -233,7 +229,7 @@ const App = () => {
       const oneTomatoSeconds = TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS;
       const completedCount = Math.floor(elapsedSeconds / oneTomatoSeconds);
       
-      // 1. Save fully completed tomatoes in the batch (if any)
+      // 1. Save fully completed tomatoes
       for (let i = 0; i < completedCount; i++) {
         handleSessionEnd('TOMATO', TOMATO_DURATION_MINUTES, true);
       }
@@ -241,18 +237,15 @@ const App = () => {
       // 2. Handle the current INTERRUPTED tomato
       const currentTomatoElapsed = elapsedSeconds % oneTomatoSeconds;
       
-      // CRITICAL LOGIC: Interruption only counts if > 2 minutes passed in THIS specific tomato
       if (currentTomatoElapsed >= INTERRUPTION_THRESHOLD_SECONDS) {
-          // Record as a failed/interrupted session
           const minutesSpent = Math.floor(currentTomatoElapsed / 60);
           handleSessionEnd('TOMATO', minutesSpent, false);
       }
 
-      // Show Broken UI
       setFeedback({ type: 'BROKEN' });
       setTimeout(() => setFeedback({ type: null }), 3000);
     }
-    resetToIdle(false); // Don't clear feedback immediately
+    resetToIdle(false); 
   };
 
   const resetToIdle = (clearFeedback = true) => {
@@ -292,8 +285,8 @@ const App = () => {
     
     // Timer View
     return (
-      <div className="w-full h-full flex flex-col items-center animate-fade-in relative overflow-y-auto overflow-x-hidden no-scrollbar pt-6 pb-24">
-         {/* Decorative background blobs (Only if no custom theme) */}
+      <div className="w-full h-full flex flex-col items-center animate-fade-in relative overflow-y-auto overflow-x-hidden no-scrollbar pt-4 pb-20">
+         {/* Decorative background blobs */}
          {!customTheme && (
            <>
             <div className="absolute top-0 right-0 w-32 h-32 bg-tomato-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70 -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
@@ -301,17 +294,17 @@ const App = () => {
            </>
          )}
 
-        {/* Mode Switcher - Visual Only if Running (Prevents layout jump) */}
-        <div className={`flex bg-white/90 backdrop-blur-sm p-1.5 rounded-2xl shadow-inner border border-red-100 mb-2 relative z-10 transition-opacity duration-300 ${status === TimerStatus.IDLE ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        {/* Mode Switcher */}
+        <div className={`flex bg-white/90 backdrop-blur-sm p-1 rounded-2xl shadow-inner border border-red-100 mb-2 relative z-10 transition-opacity duration-300 ${status === TimerStatus.IDLE ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             <button 
               onClick={() => switchMode(AppMode.POMODORO)}
-              className={`px-4 py-1.5 rounded-xl text-sm font-bold transition-all duration-200 active:scale-95 ${mode === AppMode.POMODORO ? 'bg-tomato-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 ${mode === AppMode.POMODORO ? 'bg-tomato-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
             >
               {t('mode_countdown', lang)}
             </button>
             <button 
               onClick={() => switchMode(AppMode.FLOW)}
-              className={`px-4 py-1.5 rounded-xl text-sm font-bold transition-all duration-200 active:scale-95 ${mode === AppMode.FLOW ? 'bg-blue-400 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 ${mode === AppMode.FLOW ? 'bg-blue-400 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
             >
               {t('mode_flow', lang)}
             </button>
@@ -330,10 +323,10 @@ const App = () => {
 
         {/* Configuration (Only when Idle) */}
         {status === TimerStatus.IDLE && mode === AppMode.POMODORO && (
-          <div className="w-full mb-6 z-10">
-             <div className="bg-white/90 backdrop-blur-md rounded-3xl p-4 border border-orange-100 max-w-[200px] mx-auto shadow-cartoon-hover">
-               <div className="text-center text-orange-800 font-bold mb-3 text-xs uppercase tracking-wide opacity-70">{t('header_session_setup', lang)}</div>
-               <div className="flex justify-center">
+          <div className="w-full mb-4 z-10">
+             <div className="bg-white/90 backdrop-blur-md rounded-3xl p-3 border border-orange-100 max-w-[160px] mx-auto shadow-cartoon-hover">
+               <div className="text-center text-orange-800 font-bold mb-2 text-[10px] uppercase tracking-wide opacity-70">{t('header_session_setup', lang)}</div>
+               <div className="flex justify-center scale-90">
                   <WheelPicker 
                     label={t('label_tomatoes', lang)}
                     min={1} max={8} 
@@ -344,29 +337,29 @@ const App = () => {
                     }}
                   />
                </div>
-               <div className="text-center mt-2 text-xs font-bold text-orange-400">
+               <div className="text-center mt-1 text-[10px] font-bold text-orange-400">
                   {config.tomatoesToComplete * TOMATO_DURATION_MINUTES} min
                </div>
              </div>
           </div>
         )}
 
-        {/* Action Button */}
+        {/* Action Button - Smaller Size */}
         <div className="relative z-20 w-full flex justify-center mb-6">
           {status === TimerStatus.IDLE ? (
              <button 
                 onClick={startTimer}
-                className="group relative w-20 h-20 bg-tomato-500 rounded-full flex items-center justify-center shadow-cartoon transition-transform active:scale-90 active:shadow-cartoon-active hover:-translate-y-1"
+                className="group relative w-16 h-16 bg-tomato-500 rounded-full flex items-center justify-center shadow-cartoon transition-transform active:scale-90 active:shadow-cartoon-active hover:-translate-y-1"
              >
                 <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-full transition-opacity"></div>
-                <PlayIcon className="text-white w-8 h-8 ml-1" />
+                <PlayIcon className="text-white w-6 h-6 ml-0.5" />
              </button>
           ) : (
              <button 
                 onClick={cancelTimer}
-                className="group w-20 h-20 bg-white border-4 border-gray-200 rounded-full flex items-center justify-center shadow-cartoon hover:border-red-200 hover:bg-red-50 transition-all active:scale-90 active:shadow-cartoon-active"
+                className="group w-16 h-16 bg-white border-4 border-gray-200 rounded-full flex items-center justify-center shadow-cartoon hover:border-red-200 hover:bg-red-50 transition-all active:scale-90 active:shadow-cartoon-active"
              >
-                <XIcon className="text-gray-400 group-hover:text-red-500 w-8 h-8 transition-colors" />
+                <XIcon className="text-gray-400 group-hover:text-red-500 w-6 h-6 transition-colors" />
              </button>
           )}
         </div>
@@ -375,107 +368,82 @@ const App = () => {
   };
 
   return (
-    // Layer 1: Body / Background Container
-    <div className="min-h-screen w-full flex items-center justify-center bg-cream p-4">
-      
-      {/* Toast Notification (Outside Phone Frame) */}
-      {showAchievementPopup && (
-        <div className="fixed top-10 z-[100] animate-bounce-in pointer-events-none left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4">
-           <div className="bg-yellow-400 text-yellow-900 px-6 py-3 rounded-full shadow-cartoon border-2 border-yellow-500 flex items-center justify-center gap-2 font-black">
-              <span>🏆</span>
-              <span className="truncate">{t('ach_unlocked', lang)} {showAchievementPopup}</span>
-           </div>
-        </div>
-      )}
-
-      {/* Layer 2: Phone Container Frame */}
-      <div className="iphone-frame relative w-[375px] h-[85vh] bg-white rounded-[50px] shadow-2xl overflow-hidden border-[8px] border-gray-800 flex flex-col transform transition-transform">
+      // The High-Realism iPhone Chassis
+      <div className="iphone-frame">
         
-        {/* Custom Background Image Layer */}
-        {customTheme?.backgroundImage && (
-            <div className="absolute inset-0 z-0">
-                <img src={`data:image/png;base64,${customTheme.backgroundImage}`} alt="Background" className="w-full h-full object-cover opacity-90" />
-                <div className="absolute inset-0 bg-white/30 backdrop-blur-[2px]"></div>
-            </div>
-        )}
+        {/* The Clipped Screen Content Area */}
+        <div className="iphone-screen">
+            
+            {/* Custom Background Layer */}
+            {customTheme?.backgroundImage && (
+                <div className="absolute inset-0 z-0">
+                    <img src={`data:image/png;base64,${customTheme.backgroundImage}`} alt="Background" className="w-full h-full object-cover opacity-90" />
+                    <div className="absolute inset-0 bg-white/30 backdrop-blur-[2px]"></div>
+                </div>
+            )}
 
-        {/* No Notch as requested */}
+            {/* Header - Compact */}
+            <header className="w-full flex justify-between items-center px-5 py-3 pt-12 z-20 bg-white/80 backdrop-blur-sm sticky top-0 border-b border-transparent transition-colors">
+                <div className="flex items-center gap-2">
+                <TomatoIcon className="w-8 h-8 filter drop-shadow-sm" />
+                <h1 className="text-base font-black text-gray-800 tracking-tight">{t('app_title', lang)}</h1>
+                </div>
+                <button 
+                onClick={toggleLanguage}
+                className="text-[10px] font-bold text-gray-600 bg-white border border-gray-200 px-2.5 py-1 rounded-full shadow-sm hover:bg-gray-50 transition-all active:scale-95"
+                >
+                {lang === 'en' ? '中文' : 'EN'}
+                </button>
+            </header>
 
-        {/* Header */}
-        <header className="w-full flex justify-between items-center p-6 pt-8 pb-2 z-20 bg-white/80 backdrop-blur-sm sticky top-0 border-b border-transparent transition-colors">
-            <div className="flex items-center gap-2">
-            <TomatoIcon className="w-10 h-10 filter drop-shadow-sm" />
-            <h1 className="text-lg font-black text-gray-800 tracking-tight">{t('app_title', lang)}</h1>
-            </div>
-            <button 
-            onClick={toggleLanguage}
-            className="text-xs font-bold text-gray-600 bg-white border border-gray-200 px-3 py-1.5 rounded-full shadow-sm hover:bg-gray-50 transition-all active:scale-95"
-            >
-            {lang === 'en' ? '中文' : 'EN'}
-            </button>
-        </header>
+            {/* Scrollable Content Area */}
+            <main className={`flex-1 w-full relative overflow-y-auto no-scrollbar flex flex-col z-10 ${customTheme ? 'bg-transparent' : 'bg-cream rounded-t-[32px] shadow-inner'}`}>
+                {/* Toast Notification - Smaller */}
+                {showAchievementPopup && (
+                    <div className="fixed top-24 z-[100] animate-bounce-in pointer-events-none left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 text-center">
+                    <div className="bg-yellow-400 text-yellow-900 px-4 py-2 rounded-full shadow-cartoon border-2 border-yellow-500 inline-flex items-center justify-center gap-2 font-black text-xs">
+                        <span>🏆</span>
+                        <span className="truncate">{t('ach_unlocked', lang)} {showAchievementPopup}</span>
+                    </div>
+                    </div>
+                )}
+                
+                {renderCurrentView()}
+            </main>
 
-        {/* Layer 3: App Content (Scrollable) */}
-        <main className={`flex-1 w-full relative overflow-y-auto no-scrollbar flex flex-col z-10 ${customTheme ? 'bg-transparent' : 'bg-cream rounded-t-[32px] shadow-inner'}`}>
-            {renderCurrentView()}
-        </main>
-
-        {/* Bottom Navigation */}
-        <nav className="w-full bg-white/90 backdrop-blur-md border-t border-gray-100 pb-6 pt-2 px-2 flex justify-between items-center z-30 shrink-0">
-            <button 
-            onClick={() => changeView('TIMER')}
-            className={`flex flex-col items-center flex-1 p-2 transition-all active:scale-95 ${currentView === 'TIMER' ? 'text-tomato-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
-            >
-            <ClockIcon className="w-6 h-6 mb-1" />
-            <span className="text-[9px] font-black uppercase">{t('nav_timer', lang)}</span>
-            </button>
-            <button 
-            onClick={() => changeView('STATS')}
-            className={`flex flex-col items-center flex-1 p-2 transition-all active:scale-95 ${currentView === 'STATS' ? 'text-tomato-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
-            >
-            <ChartIcon className="w-6 h-6 mb-1" />
-            <span className="text-[9px] font-black uppercase">{t('nav_stats', lang)}</span>
-            </button>
-            <button 
-            onClick={() => changeView('ACHIEVEMENTS')}
-            className={`flex flex-col items-center flex-1 p-2 transition-all active:scale-95 ${currentView === 'ACHIEVEMENTS' ? 'text-tomato-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
-            >
-            <TrophyIcon className="w-6 h-6 mb-1" />
-            <span className="text-[9px] font-black uppercase">{t('nav_achievements', lang)}</span>
-            </button>
-            <button 
-            onClick={() => changeView('AI_THEME')}
-            className={`flex flex-col items-center flex-1 p-2 transition-all active:scale-95 ${currentView === 'AI_THEME' ? 'text-purple-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
-            >
-            <MagicIcon className="w-6 h-6 mb-1" />
-            <span className="text-[9px] font-black uppercase">{t('nav_ai', lang)}</span>
-            </button>
-        </nav>
-
+            {/* Bottom Navigation - Refined */}
+            <nav className="w-full bg-white/90 backdrop-blur-md border-t border-gray-100 pb-6 pt-2 px-4 flex justify-between items-center z-30 shrink-0">
+                <button 
+                onClick={() => changeView('TIMER')}
+                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'TIMER' ? 'text-tomato-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
+                >
+                <ClockIcon className="w-5 h-5 mb-0.5" />
+                <span className="text-[9px] font-black uppercase tracking-wide">{t('nav_timer', lang)}</span>
+                </button>
+                <button 
+                onClick={() => changeView('STATS')}
+                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'STATS' ? 'text-tomato-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
+                >
+                <ChartIcon className="w-5 h-5 mb-0.5" />
+                <span className="text-[9px] font-black uppercase tracking-wide">{t('nav_stats', lang)}</span>
+                </button>
+                <button 
+                onClick={() => changeView('ACHIEVEMENTS')}
+                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'ACHIEVEMENTS' ? 'text-tomato-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
+                >
+                <TrophyIcon className="w-5 h-5 mb-0.5" />
+                <span className="text-[9px] font-black uppercase tracking-wide">{t('nav_achievements', lang)}</span>
+                </button>
+                <button 
+                onClick={() => changeView('AI_THEME')}
+                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'AI_THEME' ? 'text-purple-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
+                >
+                <MagicIcon className="w-5 h-5 mb-0.5" />
+                <span className="text-[9px] font-black uppercase tracking-wide">{t('nav_ai', lang)}</span>
+                </button>
+            </nav>
+        </div>
       </div>
-
-      <style>{`
-        @keyframes fade-in {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-out forwards;
-        }
-        @keyframes bounce-in {
-           0% { transform: scale(0.8); opacity: 0; }
-           50% { transform: scale(1.1); opacity: 1; }
-           100% { transform: scale(1); opacity: 1; }
-        }
-        .animate-bounce-in {
-           animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
-        .safe-area-inset-bottom {
-            padding-bottom: env(safe-area-inset-bottom);
-        }
-      `}</style>
-
-    </div>
   );
 };
 

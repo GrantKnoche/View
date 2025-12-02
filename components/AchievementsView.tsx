@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { UnlockedAchievement, Language, AchievementCategory, AchievementRarity } from '../types';
 import { ACHIEVEMENTS_LIST } from '../constants';
@@ -62,7 +60,6 @@ export const AchievementsView: React.FC<AchievementsViewProps> = ({ unlocked, la
     setHistory(getHistory());
   }, []);
 
-  // Filter achievements
   const displayedAchievements = useMemo(() => {
     return ACHIEVEMENTS_LIST.filter(ach => 
       activeTab === 'ALL' || ach.category === activeTab
@@ -74,11 +71,10 @@ export const AchievementsView: React.FC<AchievementsViewProps> = ({ unlocked, la
       setActiveTab(tab);
   }
 
-  // Tab Button Component
   const TabButton = ({ id, label }: { id: AchievementCategory | 'ALL', label: string }) => (
     <button
       onClick={() => changeTab(id)}
-      className={`px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-95 ${
+      className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all active:scale-95 ${
         activeTab === id 
         ? 'bg-tomato-500 text-white shadow-md' 
         : 'bg-white text-gray-400 hover:bg-gray-50 border border-gray-100'
@@ -92,31 +88,29 @@ export const AchievementsView: React.FC<AchievementsViewProps> = ({ unlocked, la
     <div className="w-full h-full flex flex-col animate-fade-in overflow-hidden">
       
       {/* Header & Tabs */}
-      <div className="px-6 pt-4 pb-2 bg-white z-10">
-        <div className="flex items-center justify-center gap-3 mb-4">
-             {/* Updated Header Icon to Museum Style */}
-             <div className="w-12 h-12 bg-yellow-100 rounded-2xl flex items-center justify-center text-yellow-600 shadow-sm border border-yellow-200">
-                <MuseumIcon className="w-7 h-7" />
+      <div className="px-4 pt-3 pb-2 bg-white z-10">
+        <div className="flex items-center justify-center gap-2 mb-3">
+             <div className="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center text-yellow-600 shadow-sm border border-yellow-200">
+                <MuseumIcon className="w-6 h-6" />
              </div>
-             <h2 className="text-2xl font-black text-tomato-700">{t('ach_title', lang)}</h2>
+             <h2 className="text-xl font-black text-tomato-700">{t('ach_title', lang)}</h2>
         </div>
         
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 justify-center">
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2 justify-center">
             <TabButton id="ALL" label={t('ach_tab_all', lang)} />
             <TabButton id="QUANTITY" label={t('ach_tab_quantity', lang)} />
             <TabButton id="CONTINUITY" label={t('ach_tab_continuity', lang)} />
             <TabButton id="HABIT" label={t('ach_tab_habit', lang)} />
         </div>
         
-        {/* Progress Summary */}
-        <div className="text-center text-xs font-bold text-gray-400 mt-2">
+        <div className="text-center text-[10px] font-bold text-gray-400 mt-1">
             {unlocked.length} / {ACHIEVEMENTS_LIST.length} {t('ach_unlocked', lang)}
         </div>
       </div>
 
       {/* Grid Content */}
-      <div className="flex-1 overflow-y-auto no-scrollbar p-4 pb-24">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="flex-1 overflow-y-auto no-scrollbar p-3 pb-20">
+        <div className="grid grid-cols-2 gap-3">
           {displayedAchievements.map((ach) => {
             const isUnlocked = unlockedIds.has(ach.id);
             const progressData = ach.progress ? ach.progress(history) : null;
@@ -127,45 +121,41 @@ export const AchievementsView: React.FC<AchievementsViewProps> = ({ unlocked, la
             return (
               <div 
                 key={ach.id} 
-                className={`relative flex flex-col p-4 rounded-3xl border-2 transition-all duration-300 ${
+                className={`relative flex flex-col p-3 rounded-2xl border transition-all duration-300 ${
                     isUnlocked 
                       ? RARITY_STYLES[ach.rarity] + ' scale-[1.01] shadow-cartoon'
                       : 'border-gray-100 bg-gray-50 opacity-80'
                 }`}
               >
                 {/* Header Row */}
-                <div className="flex items-start justify-between mb-2">
-                    {/* Icon */}
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform ${
+                <div className="flex items-start justify-between mb-1.5">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-transform ${
                         isUnlocked ? 'bg-white scale-110 shadow-sm text-gray-700' : 'bg-gray-200 grayscale scale-90 text-gray-400'
                     }`}>
-                        <IconComponent className="w-7 h-7" />
+                        <IconComponent className="w-6 h-6" />
                     </div>
                     
-                    {/* Rarity Badge (Only if unlocked or close?) - Let's show always for motivation */}
-                    <div className={`text-[10px] font-black uppercase px-2 py-1 rounded-md tracking-wider ${
+                    <div className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md tracking-wider ${
                         isUnlocked ? RARITY_TEXT_COLORS[ach.rarity] + ' bg-white/50' : 'text-gray-300'
                     }`}>
                         {t(`ach_rarity_${ach.rarity.toLowerCase()}`, lang)}
                     </div>
                 </div>
 
-                {/* Text Content */}
-                <h3 className={`font-black text-sm mb-1 ${isUnlocked ? 'text-gray-800' : 'text-gray-400'}`}>
+                <h3 className={`font-black text-xs mb-0.5 ${isUnlocked ? 'text-gray-800' : 'text-gray-400'}`}>
                     {t(ach.titleKey, lang)}
                 </h3>
-                <p className="text-xs font-semibold text-gray-400 leading-tight mb-3">
+                <p className="text-[10px] font-semibold text-gray-400 leading-tight mb-2">
                     {t(ach.descKey, lang)}
                 </p>
 
-                {/* Progress Bar (Always show unless 100% and hidden style desired, but good to show 100% too) */}
                 {progressData && (
                   <div className="w-full mt-auto">
-                      <div className="flex justify-between text-[10px] font-bold text-gray-400 mb-1">
+                      <div className="flex justify-between text-[8px] font-bold text-gray-400 mb-0.5">
                           <span>{isUnlocked ? t('ach_unlocked', lang) : `${Math.floor(progressPct)}%`}</span>
                           <span>{progressData.current}/{progressData.total}</span>
                       </div>
-                      <div className="w-full h-1.5 bg-black/5 rounded-full overflow-hidden">
+                      <div className="w-full h-1 bg-black/5 rounded-full overflow-hidden">
                         <div 
                             className={`h-full transition-all duration-1000 ${isUnlocked ? 'bg-green-500' : 'bg-tomato-400'}`} 
                             style={{ width: `${progressPct}%` }}
@@ -174,9 +164,8 @@ export const AchievementsView: React.FC<AchievementsViewProps> = ({ unlocked, la
                   </div>
                 )}
                 
-                {/* Legendary Particle Effect (CSS) */}
                 {isUnlocked && ach.rarity === 'LEGENDARY' && (
-                    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
                         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tr from-transparent via-white/30 to-transparent opacity-30 animate-pulse"></div>
                     </div>
                 )}
@@ -185,8 +174,7 @@ export const AchievementsView: React.FC<AchievementsViewProps> = ({ unlocked, la
           })}
         </div>
         
-        {/* Spacer for bottom nav */}
-        <div className="h-12"></div>
+        <div className="h-8"></div>
       </div>
     </div>
   );
