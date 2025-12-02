@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { TimerDisplay } from './components/TimerDisplay';
 import { WheelPicker } from './components/WheelPicker';
@@ -377,11 +375,12 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-900 flex items-center justify-center font-sans p-0 sm:p-4">
+    // Layer 1: Body / Background Container
+    <div className="min-h-screen w-full flex items-center justify-center bg-cream p-4">
       
       {/* Toast Notification (Outside Phone Frame) */}
       {showAchievementPopup && (
-        <div className="fixed top-20 z-50 animate-bounce-in pointer-events-none left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4">
+        <div className="fixed top-10 z-[100] animate-bounce-in pointer-events-none left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4">
            <div className="bg-yellow-400 text-yellow-900 px-6 py-3 rounded-full shadow-cartoon border-2 border-yellow-500 flex items-center justify-center gap-2 font-black">
               <span>🏆</span>
               <span className="truncate">{t('ach_unlocked', lang)} {showAchievementPopup}</span>
@@ -389,8 +388,8 @@ const App = () => {
         </div>
       )}
 
-      {/* --- PHONE FRAME CONTAINER --- */}
-      <div className="relative w-full sm:w-[375px] h-full sm:h-[812px] bg-cream sm:rounded-[40px] shadow-2xl overflow-hidden sm:border-[8px] border-gray-800 sm:ring-4 ring-gray-900/50 flex flex-col">
+      {/* Layer 2: Phone Container Frame */}
+      <div className="iphone-frame relative w-[375px] h-[85vh] bg-white rounded-[50px] shadow-2xl overflow-hidden border-[8px] border-gray-800 flex flex-col transform transition-transform">
         
         {/* Custom Background Image Layer */}
         {customTheme?.backgroundImage && (
@@ -400,13 +399,11 @@ const App = () => {
             </div>
         )}
 
-        {/* Notch (Visual Only for desktop view) */}
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-40 h-6 bg-gray-800 rounded-b-2xl z-50 hidden sm:block pointer-events-none"></div>
+        {/* No Notch as requested */}
 
         {/* Header */}
         <header className="w-full flex justify-between items-center p-6 pt-8 pb-2 z-20 bg-white/80 backdrop-blur-sm sticky top-0 border-b border-transparent transition-colors">
             <div className="flex items-center gap-2">
-            {/* Optimized Logo: Removed container div and increased size */}
             <TomatoIcon className="w-10 h-10 filter drop-shadow-sm" />
             <h1 className="text-lg font-black text-gray-800 tracking-tight">{t('app_title', lang)}</h1>
             </div>
@@ -418,8 +415,8 @@ const App = () => {
             </button>
         </header>
 
-        {/* Main Content Area (Scrollable) */}
-        <main className={`flex-1 w-full relative overflow-hidden flex flex-col z-10 ${customTheme ? 'bg-transparent' : 'bg-cream rounded-t-[32px] shadow-inner'}`}>
+        {/* Layer 3: App Content (Scrollable) */}
+        <main className={`flex-1 w-full relative overflow-y-auto no-scrollbar flex flex-col z-10 ${customTheme ? 'bg-transparent' : 'bg-cream rounded-t-[32px] shadow-inner'}`}>
             {renderCurrentView()}
         </main>
 
