@@ -87,23 +87,23 @@ export const AchievementsView: React.FC<AchievementsViewProps> = ({ unlocked, la
   return (
     <div className="w-full h-full flex flex-col animate-fade-in overflow-hidden">
       
-      {/* Header & Tabs */}
-      <div className="px-4 pt-3 pb-2 bg-white z-10">
-        <div className="flex items-center justify-center gap-2 mb-3">
-             <div className="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center text-yellow-600 shadow-sm border border-yellow-200">
-                <MuseumIcon className="w-6 h-6" />
+      {/* Header & Tabs - Compact Version */}
+      <div className="px-4 pt-2 pb-2 bg-white z-10">
+        <div className="flex items-center justify-center gap-2 mb-1">
+             <div className="w-8 h-8 bg-yellow-100 rounded-xl flex items-center justify-center text-yellow-600 shadow-sm border border-yellow-200">
+                <MuseumIcon className="w-5 h-5" />
              </div>
-             <h2 className="text-xl font-black text-tomato-700">{t('ach_title', lang)}</h2>
+             <h2 className="text-lg font-black text-tomato-700">{t('ach_title', lang)}</h2>
         </div>
         
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2 justify-center">
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 justify-center">
             <TabButton id="ALL" label={t('ach_tab_all', lang)} />
             <TabButton id="QUANTITY" label={t('ach_tab_quantity', lang)} />
             <TabButton id="CONTINUITY" label={t('ach_tab_continuity', lang)} />
             <TabButton id="HABIT" label={t('ach_tab_habit', lang)} />
         </div>
         
-        <div className="text-center text-[10px] font-bold text-gray-400 mt-1">
+        <div className="text-center text-[9px] font-bold text-gray-400 mt-1">
             {unlocked.length} / {ACHIEVEMENTS_LIST.length} {t('ach_unlocked', lang)}
         </div>
       </div>
@@ -129,10 +129,10 @@ export const AchievementsView: React.FC<AchievementsViewProps> = ({ unlocked, la
               >
                 {/* Header Row */}
                 <div className="flex items-start justify-between mb-1.5">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-transform ${
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-transform ${
                         isUnlocked ? 'bg-white scale-110 shadow-sm text-gray-700' : 'bg-gray-200 grayscale scale-90 text-gray-400'
                     }`}>
-                        <IconComponent className="w-6 h-6" />
+                        <IconComponent className="w-5 h-5" />
                     </div>
                     
                     <div className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md tracking-wider ${
@@ -145,7 +145,7 @@ export const AchievementsView: React.FC<AchievementsViewProps> = ({ unlocked, la
                 <h3 className={`font-black text-xs mb-0.5 ${isUnlocked ? 'text-gray-800' : 'text-gray-400'}`}>
                     {t(ach.titleKey, lang)}
                 </h3>
-                <p className="text-[10px] font-semibold text-gray-400 leading-tight mb-2">
+                <p className="text-[9px] font-semibold text-gray-400 leading-tight mb-2">
                     {t(ach.descKey, lang)}
                 </p>
 

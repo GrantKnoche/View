@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { TimerStatus, AppMode, Language, FeedbackState } from '../types';
 import { formatTime } from '../utils/timeUtils';
@@ -30,19 +31,16 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
   let percentage = 0;
   
   if (mode === AppMode.POMODORO) {
-    // Current tomato progress
     const singleDuration = TOMATO_DURATION_MINUTES * 60;
     const timeLeftInCurrent = timeRemaining % singleDuration;
     const effectiveTimeLeft = timeLeftInCurrent === 0 && timeRemaining > 0 ? singleDuration : timeLeftInCurrent;
-    
-    // Percentage 0 -> 100 as we complete the tomato
     percentage = ((singleDuration - effectiveTimeLeft) / singleDuration) * 100;
     
     if (status === TimerStatus.RESTING) {
         percentage = ((totalDuration - timeRemaining) / totalDuration) * 100;
     }
   } else {
-    // Flow mode
+    // Flow mode: Liquid acts as a seconds ticker (0-60s loop) for visual liveliness
     percentage = ((totalDuration % 60) / 60) * 100; 
   }
 
@@ -51,7 +49,7 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
   const isResting = status === TimerStatus.RESTING;
   const isBroken = feedback.type === 'BROKEN';
   const isReward = feedback.type === 'REWARD';
-  const isCompleted = percentage >= 99.5; 
+  const isCompleted = percentage >= 99.5 && mode === AppMode.POMODORO; // Only auto-complete visual in Pomodoro
 
   let containerClasses = "border-tomato-600 bg-tomato-100";
   if (isResting) containerClasses = "border-leaf-500 bg-leaf-100";
@@ -64,7 +62,7 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
   const transitionSpeed = isBroken ? 'duration-100' : 'duration-500';
 
   return (
-    <div className="relative w-64 h-64 mx-auto my-4 flex items-center justify-center">
+    <div className="relative w-64 h-64 flex items-center justify-center">
       
       {/* Broken Overlay Badge */}
       {isBroken && (
@@ -105,7 +103,7 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
         </>
       )}
 
-      {/* Main Tomato Container - Reduced Size (w-48 instead of w-64) */}
+      {/* Main Tomato Container - Fixed Size w-48 h-48 */}
       <div className={`relative w-48 h-48 rounded-full overflow-hidden border-[5px] shadow-2xl transition-all ${transitionSpeed}
         ${containerClasses} 
         ${isReward ? 'animate-bulge' : ''}
@@ -130,27 +128,27 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
             </span>
 
              {!isBroken && (
-                <div className="mt-1 text-[10px] font-bold text-white/90 bg-black/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                    {status === TimerStatus.IDLE && mode === AppMode.POMODORO && t('status_ready_focus', lang)}
-                    {status === TimerStatus.IDLE && mode === AppMode.FLOW && t('status_ready_flow', lang)}
-                    
-                    {status === TimerStatus.RUNNING && mode === AppMode.POMODORO && t('status_tomato_batch', lang, { current: currentTomatoIndex, total: totalTomatoes })}
-                    {status === TimerStatus.RUNNING && mode === AppMode.FLOW && t('status_flowing', lang)}
-                    
-                    {status === TimerStatus.RESTING && t('status_relax', lang)}
+                <div className="absolute top-32 w-full flex justify-center">
+                    <div className="text-[10px] font-bold text-white/90 bg-black/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                        {status === TimerStatus.IDLE && mode === AppMode.POMODORO && t('status_ready_focus', lang)}
+                        {status === TimerStatus.IDLE && mode === AppMode.FLOW && t('status_ready_flow', lang)}
+                        
+                        {status === TimerStatus.RUNNING && mode === AppMode.POMODORO && t('status_tomato_batch', lang, { current: currentTomatoIndex, total: totalTomatoes })}
+                        {status === TimerStatus.RUNNING && mode === AppMode.FLOW && t('status_flowing', lang)}
+                        
+                        {status === TimerStatus.RESTING && t('status_relax', lang)}
+                    </div>
                 </div>
              )}
 
             <div className="absolute bottom-6 text-[9px] font-bold text-white/80 uppercase tracking-widest drop-shadow-sm px-4">
                 {feedback.type === 'ENCOURAGE' && <span className="animate-bounce inline-block text-yellow-200">{t('msg_almost_there', lang)}</span>}
-                {!feedback.type && !isBroken && status === TimerStatus.RUNNING && mode === AppMode.POMODORO && t('status_focus_msg', lang)}
-                {!feedback.type && !isBroken && status === TimerStatus.RESTING && t('status_rest_msg', lang)}
             </div>
         </div>
       </div>
 
       {/* Stem */}
-      <div className={`absolute top-4 left-1/2 transform -translate-x-1/2 z-20 transition-all duration-300 ${isBroken ? 'grayscale brightness-50' : ''}`}>
+      <div className={`absolute top-8 left-1/2 transform -translate-x-1/2 z-20 transition-all duration-300 ${isBroken ? 'grayscale brightness-50' : ''}`}>
          <div className={`w-8 h-6 rounded-full flex items-center justify-center shadow-lg transition-colors ${isResting ? 'bg-leaf-600' : 'bg-leaf-500'}`}>
             <div className={`w-1.5 h-6 rounded-full absolute -top-4 ${isResting ? 'bg-leaf-700' : 'bg-leaf-600'}`}></div>
             <div className={`w-8 h-3 rounded-full absolute top-1.5 rotate-12 ${isResting ? 'bg-leaf-600' : 'bg-leaf-500'}`}></div>

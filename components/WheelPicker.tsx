@@ -10,7 +10,7 @@ interface WheelPickerProps {
   label?: string;
 }
 
-const ITEM_HEIGHT = 48; // Height of each item in pixels
+const ITEM_HEIGHT = 48; // Taller for better touch target and spacing
 
 export const WheelPicker: React.FC<WheelPickerProps> = ({ value, onChange, min, max, label }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -31,16 +31,21 @@ export const WheelPicker: React.FC<WheelPickerProps> = ({ value, onChange, min, 
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount to set initial position
+  }, []); // Run once on mount
 
   const handleScrollEnd = () => {
      if (scrollRef.current) {
       const scrollTop = scrollRef.current.scrollTop;
       const index = Math.round(scrollTop / ITEM_HEIGHT);
       const newValue = range[index];
-      if (newValue !== undefined) {
+      if (newValue !== undefined && newValue !== value) {
         onChange(newValue);
       }
+      // Snap to exact position
+      scrollRef.current.scrollTo({
+          top: index * ITEM_HEIGHT,
+          behavior: 'smooth'
+      });
       setIsScrolling(false);
      }
   }
@@ -53,49 +58,61 @@ export const WheelPicker: React.FC<WheelPickerProps> = ({ value, onChange, min, 
         const scrollTop = scrollRef.current.scrollTop;
         const rawIndex = Math.round(scrollTop / ITEM_HEIGHT);
         
-        // Only trigger if we snapped to a new integer index during scroll
         if (rawIndex !== lastIndexRef.current && rawIndex >= 0 && rawIndex < range.length) {
             lastIndexRef.current = rawIndex;
-            
-            // Audio Feedback
             playTickSound();
-
-            // Haptic Feedback (Taptic Engine style)
-            if (navigator.vibrate) {
-                navigator.vibrate(5); // 5ms burst
-            }
+            if (navigator.vibrate) navigator.vibrate(5);
         }
     }
 
     if (scrollTimeout.current) {
       clearTimeout(scrollTimeout.current);
     }
-    scrollTimeout.current = setTimeout(handleScrollEnd, 150);
+    scrollTimeout.current = setTimeout(handleScrollEnd, 100);
   };
 
   return (
-    <div className="flex flex-col items-center mx-1">
-      {label && <span className="text-[10px] font-bold text-red-800 mb-1 uppercase tracking-wider whitespace-nowrap">{label}</span>}
-      <div className="relative h-32 w-20 bg-white rounded-2xl shadow-inner border-2 border-red-100 overflow-hidden">
-        {/* Selection Highlight / Overlay */}
-        <div className="absolute top-1/2 left-0 right-0 h-12 -mt-6 bg-red-50 border-y border-red-200 pointer-events-none z-10 opacity-50"></div>
+    <div className="flex flex-col items-center justify-center relative w-full">
+      {/* Container */}
+      <div className="relative h-[144px] w-32 overflow-hidden">
         
-        {/* Scroll Container */}
+        {/* Selection Highlight Bar (Glassmorphism) */}
+        <div className="absolute top-1/2 left-0 right-0 transform -translate-y-1/2 h-[40px] bg-black/5 rounded-lg z-0 pointer-events-none border border-black/5"></div>
+        
+        {/* Scroll Container with CSS Mask for Fade Effect */}
         <div 
           ref={scrollRef}
-          className="h-full overflow-y-scroll no-scrollbar snap-y snap-mandatory py-[40px]"
+          className="h-full overflow-y-scroll no-scrollbar snap-y snap-mandatory py-[48px] relative z-10"
+          style={{
+              maskImage: 'linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%)'
+          }}
           onScroll={onScroll}
         >
-          {range.map((num) => (
-            <div 
-              key={num} 
-              className={`h-12 flex items-center justify-center snap-center transition-colors duration-200 ${
-                num === value && !isScrolling ? 'text-tomato-600 font-extrabold text-2xl' : 'text-gray-400 font-bold text-lg'
-              }`}
-            >
-              {num}
-            </div>
-          ))}
+          {range.map((num) => {
+             const isActive = num === value;
+             return (
+                <div 
+                key={num} 
+                className={`h-[48px] flex items-center justify-center snap-center transition-all duration-200 cursor-pointer select-none`}
+                onClick={() => {
+                    onChange(num);
+                    scrollRef.current?.scrollTo({ top: (num - min) * ITEM_HEIGHT, behavior: 'smooth' });
+                }}
+                >
+                <span className={`text-3xl font-black transition-all duration-200 ${
+                    isActive 
+                    ? 'text-gray-800 scale-110' 
+                    : 'text-gray-400 scale-90 opacity-60'
+                }`}>
+                    {num}
+                </span>
+                {isActive && label && (
+                     <span className="ml-2 text-xs font-bold text-gray-500 uppercase tracking-widest mt-1.5">{label}</span>
+                )}
+                </div>
+            );
+          })}
         </div>
       </div>
     </div>

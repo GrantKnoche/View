@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { TimerDisplay } from './components/TimerDisplay';
 import { WheelPicker } from './components/WheelPicker';
@@ -285,50 +286,50 @@ const App = () => {
     
     // Timer View
     return (
-      <div className="w-full h-full flex flex-col items-center animate-fade-in relative overflow-y-auto overflow-x-hidden no-scrollbar pt-4 pb-20">
+      <div className="w-full h-full flex flex-col items-center animate-fade-in relative overflow-hidden pt-4 pb-4">
          {/* Decorative background blobs */}
          {!customTheme && (
            <>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-tomato-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70 -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-yellow-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70 translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
+            <div className="absolute top-12 right-0 w-32 h-32 bg-tomato-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70 -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+            <div className="absolute bottom-32 left-0 w-32 h-32 bg-yellow-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70 translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
            </>
          )}
 
-        {/* Mode Switcher */}
-        <div className={`flex bg-white/90 backdrop-blur-sm p-1 rounded-2xl shadow-inner border border-red-100 mb-2 relative z-10 transition-opacity duration-300 ${status === TimerStatus.IDLE ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-            <button 
-              onClick={() => switchMode(AppMode.POMODORO)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 ${mode === AppMode.POMODORO ? 'bg-tomato-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
-            >
-              {t('mode_countdown', lang)}
-            </button>
-            <button 
-              onClick={() => switchMode(AppMode.FLOW)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 ${mode === AppMode.FLOW ? 'bg-blue-400 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
-            >
-              {t('mode_flow', lang)}
-            </button>
+        {/* Top Spacer / Mode Switcher */}
+        <div className="flex-1 flex flex-col justify-end items-center pb-6">
+             <div className={`flex bg-white/90 backdrop-blur-sm p-1 rounded-2xl shadow-inner border border-red-100 relative z-10 transition-opacity duration-300 ${status === TimerStatus.IDLE ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <button 
+                onClick={() => switchMode(AppMode.POMODORO)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 ${mode === AppMode.POMODORO ? 'bg-tomato-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
+                >
+                {t('mode_countdown', lang)}
+                </button>
+                <button 
+                onClick={() => switchMode(AppMode.FLOW)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 ${mode === AppMode.FLOW ? 'bg-blue-400 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
+                >
+                {t('mode_flow', lang)}
+                </button>
+            </div>
         </div>
 
-        <TimerDisplay 
-          timeRemaining={mode === AppMode.POMODORO ? timeLeft : elapsedTime}
-          totalDuration={isBreakPhase ? currentBreakDuration * 60 : config.tomatoesToComplete * TOMATO_DURATION_MINUTES * 60}
-          status={status}
-          mode={mode}
-          currentTomatoIndex={getCurrentTomatoIndex()}
-          totalTomatoes={config.tomatoesToComplete}
-          lang={lang}
-          feedback={feedback}
-        />
+        {/* Center: Timer & Configuration */}
+        <div className="flex-[2] flex flex-col items-center justify-center relative">
+            <TimerDisplay 
+                timeRemaining={mode === AppMode.POMODORO ? timeLeft : elapsedTime}
+                totalDuration={isBreakPhase ? currentBreakDuration * 60 : config.tomatoesToComplete * TOMATO_DURATION_MINUTES * 60}
+                status={status}
+                mode={mode}
+                currentTomatoIndex={getCurrentTomatoIndex()}
+                totalTomatoes={config.tomatoesToComplete}
+                lang={lang}
+                feedback={feedback}
+            />
 
-        {/* Configuration (Only when Idle) */}
-        {status === TimerStatus.IDLE && mode === AppMode.POMODORO && (
-          <div className="w-full mb-4 z-10">
-             <div className="bg-white/90 backdrop-blur-md rounded-3xl p-3 border border-orange-100 max-w-[160px] mx-auto shadow-cartoon-hover">
-               <div className="text-center text-orange-800 font-bold mb-2 text-[10px] uppercase tracking-wide opacity-70">{t('header_session_setup', lang)}</div>
-               <div className="flex justify-center scale-90">
-                  <WheelPicker 
-                    label={t('label_tomatoes', lang)}
+            {/* Picker - Positioned directly under timer in a consistent layout slot */}
+            <div className={`transition-all duration-500 overflow-hidden flex flex-col items-center ${status === TimerStatus.IDLE && mode === AppMode.POMODORO ? 'max-h-48 opacity-100 mt-0' : 'max-h-0 opacity-0'}`}>
+                 <WheelPicker 
+                    label={t('label_tomatoes', lang)} // Only short label inside picker now
                     min={1} max={8} 
                     value={config.tomatoesToComplete} 
                     onChange={(v) => {
@@ -336,33 +337,39 @@ const App = () => {
                         setTimeLeft(v * TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS);
                     }}
                   />
-               </div>
-               <div className="text-center mt-1 text-[10px] font-bold text-orange-400">
-                  {config.tomatoesToComplete * TOMATO_DURATION_MINUTES} min
-               </div>
-             </div>
-          </div>
-        )}
+                  <div className="text-center text-[10px] font-bold text-gray-400 mt-[-10px] relative z-20">
+                     {config.tomatoesToComplete * TOMATO_DURATION_MINUTES} min
+                  </div>
+            </div>
 
-        {/* Action Button - Smaller Size */}
-        <div className="relative z-20 w-full flex justify-center mb-6">
-          {status === TimerStatus.IDLE ? (
-             <button 
-                onClick={startTimer}
-                className="group relative w-16 h-16 bg-tomato-500 rounded-full flex items-center justify-center shadow-cartoon transition-transform active:scale-90 active:shadow-cartoon-active hover:-translate-y-1"
-             >
-                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-full transition-opacity"></div>
-                <PlayIcon className="text-white w-6 h-6 ml-0.5" />
-             </button>
-          ) : (
-             <button 
-                onClick={cancelTimer}
-                className="group w-16 h-16 bg-white border-4 border-gray-200 rounded-full flex items-center justify-center shadow-cartoon hover:border-red-200 hover:bg-red-50 transition-all active:scale-90 active:shadow-cartoon-active"
-             >
-                <XIcon className="text-gray-400 group-hover:text-red-500 w-6 h-6 transition-colors" />
-             </button>
-          )}
+            {/* Placeholder for Flow Mode spacing when picker is hidden */}
+             {mode === AppMode.FLOW && status === TimerStatus.IDLE && (
+                <div className="h-32"></div>
+             )}
         </div>
+
+        {/* Bottom: Action Button - Fixed Position */}
+        <div className="flex-1 flex flex-col justify-center items-center pb-2">
+            <div className="relative w-20 h-20 flex items-center justify-center">
+                {status === TimerStatus.IDLE ? (
+                    <button 
+                        onClick={startTimer}
+                        className="group absolute inset-0 w-20 h-20 bg-tomato-500 rounded-full flex items-center justify-center shadow-cartoon transition-transform active:scale-90 active:shadow-cartoon-active hover:-translate-y-1 z-20"
+                    >
+                        <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-full transition-opacity"></div>
+                        <PlayIcon className="text-white w-8 h-8 ml-1" />
+                    </button>
+                ) : (
+                    <button 
+                        onClick={cancelTimer}
+                        className="group absolute inset-0 w-20 h-20 bg-white border-4 border-gray-200 rounded-full flex items-center justify-center shadow-cartoon hover:border-red-200 hover:bg-red-50 transition-all active:scale-90 active:shadow-cartoon-active z-20"
+                    >
+                        <XIcon className="text-gray-400 group-hover:text-red-500 w-8 h-8 transition-colors" />
+                    </button>
+                )}
+            </div>
+        </div>
+
       </div>
     );
   };
@@ -383,7 +390,7 @@ const App = () => {
             )}
 
             {/* Header - Compact */}
-            <header className="w-full flex justify-between items-center px-5 py-3 pt-12 z-20 bg-white/80 backdrop-blur-sm sticky top-0 border-b border-transparent transition-colors">
+            <header className="w-full flex justify-between items-center px-5 py-2 pt-10 z-20 bg-white/80 backdrop-blur-sm sticky top-0 border-b border-transparent transition-colors">
                 <div className="flex items-center gap-2">
                 <TomatoIcon className="w-8 h-8 filter drop-shadow-sm" />
                 <h1 className="text-base font-black text-gray-800 tracking-tight">{t('app_title', lang)}</h1>
@@ -396,8 +403,8 @@ const App = () => {
                 </button>
             </header>
 
-            {/* Scrollable Content Area */}
-            <main className={`flex-1 w-full relative overflow-y-auto no-scrollbar flex flex-col z-10 ${customTheme ? 'bg-transparent' : 'bg-cream rounded-t-[32px] shadow-inner'}`}>
+            {/* Main Content Area */}
+            <main className={`flex-1 w-full relative no-scrollbar flex flex-col z-10 ${currentView === 'TIMER' ? 'overflow-hidden' : 'overflow-y-auto'} ${customTheme ? 'bg-transparent' : 'bg-cream rounded-t-[32px] shadow-inner'}`}>
                 {/* Toast Notification - Smaller */}
                 {showAchievementPopup && (
                     <div className="fixed top-24 z-[100] animate-bounce-in pointer-events-none left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 text-center">
@@ -412,7 +419,7 @@ const App = () => {
             </main>
 
             {/* Bottom Navigation - Refined */}
-            <nav className="w-full bg-white/90 backdrop-blur-md border-t border-gray-100 pb-6 pt-2 px-4 flex justify-between items-center z-30 shrink-0">
+            <nav className="w-full bg-white/90 backdrop-blur-md border-t border-gray-100 pb-4 pt-2 px-4 flex justify-between items-center z-30 shrink-0">
                 <button 
                 onClick={() => changeView('TIMER')}
                 className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'TIMER' ? 'text-tomato-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
