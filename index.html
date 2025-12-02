@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -25,21 +26,24 @@
                 500: '#32CD32',
                 600: '#228B22',
               },
-              cream: '#FAFAEE', // Updated to Warm Beige
+              cream: '#F9F2EF', // Updated to Warm Off-white #F9F2EF
             },
             fontFamily: {
               sans: ['Nunito', 'ui-rounded', 'SF Pro Rounded', 'system-ui', 'sans-serif'],
             },
             boxShadow: {
-              'cartoon': '3px 3px 0px 0px rgba(0,0,0,0.12)', // Slightly smaller shadow
+              'cartoon': '3px 3px 0px 0px rgba(0,0,0,0.12)', 
               'cartoon-hover': '1px 1px 0px 0px rgba(0,0,0,0.12)',
               'cartoon-active': '0px 0px 0px 0px rgba(0,0,0,0.12)',
+              'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
             },
             animation: {
               'bulge': 'bulge 0.5s ease-in-out',
               'ripple': 'ripple 1s cubic-bezier(0, 0.2, 0.8, 1) infinite',
               'cartoon-shake': 'cartoon-shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
               'elastic-pop': 'elastic-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+              'fade-in': 'fadeIn 0.5s ease-out forwards',
+              'bounce-in': 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards',
             },
             keyframes: {
               bulge: {
@@ -63,6 +67,14 @@
                 '60%': { transform: 'scale(1.1)', opacity: '1' },
                 '80%': { transform: 'scale(0.95)', opacity: '1' },
                 '100%': { transform: 'scale(1)', opacity: '1' },
+              },
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              bounceIn: {
+                '0%': { transform: 'scale(0.5)', opacity: '0' },
+                '100%': { transform: 'scale(1)', opacity: '1' },
               }
             }
           },
@@ -73,7 +85,7 @@
     <style>
       body {
         font-family: 'Nunito', sans-serif;
-        background-color: #FAFAEE; /* Warm Beige Body */
+        background-color: #FAFAEE; 
         margin: 0;
         padding: 0;
         height: 100vh;
@@ -84,32 +96,46 @@
         justify-content: center;
       }
 
-      /* Hide scrollbar */
+      /* Wrapper for Smart Scaling */
+      #app-scale-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform-origin: center center;
+        transition: transform 0.3s ease-out;
+      }
+
+      @media (max-height: 980px) {
+        #app-scale-wrapper { transform: scale(0.9); }
+      }
+      @media (max-height: 800px) {
+        #app-scale-wrapper { transform: scale(0.8); }
+      }
+      @media (max-height: 700px) {
+        #app-scale-wrapper { transform: scale(0.7); }
+      }
+      @media (max-height: 600px) {
+        #app-scale-wrapper { transform: scale(0.6); }
+      }
+
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-      /* Highly Realistic iPhone Frame */
       .iphone-frame {
-        width: 390px;
-        height: 844px;
-        max-height: 90vh; /* Responsive height */
-        aspect-ratio: 390/844;
-        
-        /* The Titanium Bezel */
+        width: 450px;
+        height: 900px;
         border-radius: 55px;
-        border: 6px solid #4a4a4a; /* Inner Black Bezel */
+        border: 6px solid #4a4a4a;
         box-shadow: 
-          0 0 0 4px #d4d4d1,  /* Titanium Outer Rim */
-          0 0 0 5px #a1a1a1,  /* Metallic Edge */
-          20px 20px 50px rgba(0,0,0,0.15); /* Floating Shadow */
-          
+          0 0 0 4px #d4d4d1,
+          0 0 0 5px #a1a1a1,
+          20px 20px 50px rgba(0,0,0,0.15);
         background-color: #FFFFFF;
         position: relative;
         z-index: 10;
-        transition: transform 0.3s ease;
+        flex-shrink: 0;
       }
 
-      /* Side Buttons Simulation */
       .iphone-frame::before {
         content: '';
         position: absolute;
@@ -137,18 +163,16 @@
         z-index: -1;
       }
 
-      /* Inner Screen Clipper */
       .iphone-screen {
         width: 100%;
         height: 100%;
-        border-radius: 48px; /* Matches frame curve */
+        border-radius: 48px;
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        background: #FFFFFF;
+        /* background: #FFFFFF; REMOVED FIXED BACKGROUND */
         position: relative;
-        /* Global Scaling for Retina Feel */
-        font-size: 14px; 
+        font-size: 16px; 
         line-height: 1.5;
         letter-spacing: -0.01em;
       }
@@ -166,6 +190,6 @@
 </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
+    

@@ -21,7 +21,7 @@ const translations: Dictionary = {
   'status_rest_msg': { en: 'Take a break.', zh: '休息时间到。' },
 
   // Picker
-  'label_tomatoes': { en: 'Tomatoes', zh: '番茄数量' },
+  'label_tomatoes': { en: 'Tomatoes', zh: '个番茄' }, // Changed to measure word
   'header_session_setup': { en: 'Session Setup', zh: '设置专注' },
 
   // Feedback / Toasts
@@ -115,7 +115,7 @@ const translations: Dictionary = {
   'ai_title': { en: 'Magic Theme', zh: '魔法主题' },
   'ai_desc': { en: 'Create a custom background using AI. Describe what you want!', zh: '使用 AI 创造独一无二的背景。描述你想要的画面！' },
   'ai_placeholder': { en: 'e.g., A cozy coffee shop with rain outside...', zh: '例如：窗外下着雨的温馨咖啡馆...' },
-  'ai_edit_placeholder': { en: 'e.g., Add a cat on the table...', zh: '例如：在桌子上加一只猫...' },
+  'ai_edit_placeholder': { en: 'e.g., Add a retro filter, Remove the cup...', zh: '例如：增加复古滤镜，移除桌上的杯子...' },
   'ai_generate': { en: 'Generate', zh: '生成背景' },
   'ai_generating': { en: 'Dreaming...', zh: '正在造梦...' },
   'ai_set_bg': { en: 'Set as Background', zh: '设为壁纸' },

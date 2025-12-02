@@ -31,10 +31,16 @@ const App = () => {
   const [mode, setMode] = useState<AppMode>(AppMode.POMODORO);
   const [status, setStatus] = useState<TimerStatus>(TimerStatus.IDLE);
   
-  // Timer State
+  // Timer State (Visual)
   const [timeLeft, setTimeLeft] = useState(TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS);
   const [elapsedTime, setElapsedTime] = useState(0); 
   
+  // Timer Accuracy Refs (Target Timestamp Pattern)
+  const endTimeRef = useRef<number | null>(null);   // For Countdown (Pomodoro/Rest)
+  const startTimeRef = useRef<number | null>(null); // For Count-up (Flow)
+  const timerInterval = useRef<number | null>(null);
+  const encourageTriggeredRef = useRef<boolean>(false);
+
   // Configuration
   const [config, setConfig] = useState<PomodoroConfig>({
     tomatoesToComplete: 1, // Default 1
@@ -52,9 +58,6 @@ const App = () => {
 
   // Theme State (AI)
   const [customTheme, setCustomTheme] = useState<CustomTheme | null>(null);
-
-  // Refs for intervals
-  const timerInterval = useRef<number | null>(null);
 
   // --- Initialization ---
   useEffect(() => {
@@ -94,43 +97,57 @@ const App = () => {
 
   // --- Helpers ---
   
-  // Calculate which tomato we are on (1, 2, 3...) based on time left
   const getCurrentTomatoIndex = () => {
     if (mode === AppMode.FLOW || status === TimerStatus.IDLE) return 1;
     const totalTime = config.tomatoesToComplete * TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS;
+    // Note: In Target Timestamp mode, we rely on timeLeft which is updated every tick
     const timeSpent = totalTime - timeLeft;
-    // 0-25m = #1, 25-50m = #2
     return Math.min(Math.floor(timeSpent / (TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS)) + 1, config.tomatoesToComplete);
   };
 
-  // --- Timer Logic ---
+  // --- Timer Logic (Target Timestamp) ---
 
   const tick = useCallback(() => {
+    const now = Date.now();
+
     if (mode === AppMode.FLOW) {
-      setElapsedTime(prev => prev + 1);
-      setTimeLeft(prev => prev + 1); // For display consistency
+      if (startTimeRef.current !== null) {
+        const elapsed = Math.floor((now - startTimeRef.current) / 1000);
+        setElapsedTime(elapsed);
+        setTimeLeft(elapsed); // For consistent prop passing
+      }
     } else {
-      // Pomodoro Mode
-      setTimeLeft(prev => {
-        // Trigger Encouragement at exactly 2 minutes left (120 seconds)
-        if (prev === 121) {
-            playEncouragementSound();
-            setFeedback({ type: 'ENCOURAGE' });
-            setTimeout(() => setFeedback({ type: null }), 5000);
+      // Countdown (Pomodoro or Rest)
+      if (endTimeRef.current !== null) {
+        const remaining = Math.max(0, Math.ceil((endTimeRef.current - now) / 1000));
+        setTimeLeft(remaining);
+
+        // Encouragement Logic (Approx 2 mins left)
+        if (mode === AppMode.POMODORO && !isBreakPhase) {
+            if (remaining <= 121 && remaining > 119 && !encourageTriggeredRef.current) {
+                playEncouragementSound();
+                setFeedback({ type: 'ENCOURAGE' });
+                setTimeout(() => setFeedback({ type: null }), 5000);
+                encourageTriggeredRef.current = true;
+            }
         }
 
-        if (prev <= 1) {
+        // Completion
+        if (remaining <= 0) {
           handleTimerComplete();
-          return 0;
         }
-        return prev - 1;
-      });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, status]); 
+  }, [mode, status, isBreakPhase]); // Add dependencies carefully
 
+  // Interval setup
   useEffect(() => {
     if (status === TimerStatus.RUNNING || status === TimerStatus.RESTING) {
+      // Clear any existing interval just in case
+      if (timerInterval.current) clearInterval(timerInterval.current);
+      // Run tick immediately to avoid 1s delay
+      tick();
       timerInterval.current = window.setInterval(tick, 1000);
     } else {
       if (timerInterval.current) clearInterval(timerInterval.current);
@@ -140,10 +157,24 @@ const App = () => {
     };
   }, [status, tick]);
 
+  // Page Visibility Handler (Auto-sync when waking up)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+             // Force an immediate tick to update UI from system clock
+             if (status === TimerStatus.RUNNING || status === TimerStatus.RESTING) {
+                 tick();
+             }
+        }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [status, tick]);
+
+
   // --- Logic Handlers ---
 
   const handleSessionEnd = (type: 'TOMATO' | 'FLOW', durationMinutes: number, completed: boolean) => {
-    // Save Record
     const newRecord: SessionRecord = {
       id: crypto.randomUUID(),
       timestamp: Date.now(),
@@ -154,12 +185,10 @@ const App = () => {
     const updatedHistory = saveSessionRecord(newRecord);
     setHistory(updatedHistory);
 
-    // Check Achievements (only on success or relevant updates)
     if (completed) {
         const newUnlocks = checkAndUnlockAchievements(updatedHistory);
         if (newUnlocks.length > 0) {
         setUnlockedAchievements(getUnlockedAchievements());
-        // Show first new unlock as popup
         setShowAchievementPopup(t(newUnlocks[0].titleKey, lang));
         setTimeout(() => setShowAchievementPopup(null), 3000);
         }
@@ -167,20 +196,19 @@ const App = () => {
   };
 
   const handleTimerComplete = () => {
+    // Clear interval immediately to prevent double firing
+    if (timerInterval.current) clearInterval(timerInterval.current);
+
     if (isBreakPhase) {
-      // Break Over -> Reset to Idle
+      // Break is over
       setIsBreakPhase(false);
       resetToIdle();
     } else {
-      // Work Session Over
+      // Pomodoro Batch Completed
       playCompleteSound();
-      
-      // Save all tomatoes in the batch
       for (let i = 0; i < config.tomatoesToComplete; i++) {
           handleSessionEnd('TOMATO', TOMATO_DURATION_MINUTES, true);
       }
-
-      // Calculate Dynamic Rest
       const N = config.tomatoesToComplete;
       const baseRest = N * BASE_REST_MINUTES;
       const bonusRest = Math.max(0, N - 1) * BONUS_REST_MINUTES;
@@ -189,9 +217,12 @@ const App = () => {
       setCurrentBreakDuration(totalRest);
       setIsBreakPhase(true);
       setStatus(TimerStatus.RESTING);
-      setTimeLeft(totalRest * ONE_MINUTE_SECONDS);
+      
+      // Start Break Timer Immediately using Target Timestamp
+      const totalRestSeconds = totalRest * ONE_MINUTE_SECONDS;
+      setTimeLeft(totalRestSeconds);
+      endTimeRef.current = Date.now() + (totalRestSeconds * 1000);
 
-      // Show Reward UI
       setFeedback({ 
         type: 'REWARD', 
         extraData: { bonus: bonusRest }
@@ -202,14 +233,25 @@ const App = () => {
 
   const startTimer = () => {
     playActionSound();
+    const now = Date.now();
+    
     if (mode === AppMode.POMODORO) {
       setIsBreakPhase(false);
-      // Set total time based on batch size
-      setTimeLeft(config.tomatoesToComplete * TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS);
+      
+      // Setup Target Timestamp
+      // We rely on the config for the total duration
+      const durationSeconds = config.tomatoesToComplete * TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS;
+      
+      setTimeLeft(durationSeconds);
+      endTimeRef.current = now + (durationSeconds * 1000);
+      encourageTriggeredRef.current = false;
+      
       setStatus(TimerStatus.RUNNING);
     } else {
+      // Flow Mode
       setElapsedTime(0);
       setTimeLeft(0);
+      startTimeRef.current = now;
       setStatus(TimerStatus.RUNNING);
     }
     setFeedback({ type: null });
@@ -217,25 +259,27 @@ const App = () => {
 
   const cancelTimer = () => {
     playCancelSound();
+    // Clear interval
+    if (timerInterval.current) clearInterval(timerInterval.current);
+
     if (mode === AppMode.FLOW) {
        const flowMinutes = Math.floor(elapsedTime / 60);
        if (flowMinutes > 0) {
           handleSessionEnd('FLOW', flowMinutes, true);
        }
     } else {
-      // Pomodoro cancelled logic
-      const totalSeconds = config.tomatoesToComplete * TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS;
-      const elapsedSeconds = totalSeconds - timeLeft;
+      // Calculate how much actual time passed
+      const totalDurationSeconds = config.tomatoesToComplete * TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS;
+      const remaining = timeLeft; // State is kept up to date by tick
+      const elapsedSeconds = Math.max(0, totalDurationSeconds - remaining);
       
       const oneTomatoSeconds = TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS;
       const completedCount = Math.floor(elapsedSeconds / oneTomatoSeconds);
       
-      // 1. Save fully completed tomatoes
       for (let i = 0; i < completedCount; i++) {
         handleSessionEnd('TOMATO', TOMATO_DURATION_MINUTES, true);
       }
       
-      // 2. Handle the current INTERRUPTED tomato
       const currentTomatoElapsed = elapsedSeconds % oneTomatoSeconds;
       
       if (currentTomatoElapsed >= INTERRUPTION_THRESHOLD_SECONDS) {
@@ -253,6 +297,9 @@ const App = () => {
     setStatus(TimerStatus.IDLE);
     setIsBreakPhase(false);
     setElapsedTime(0);
+    endTimeRef.current = null;
+    startTimeRef.current = null;
+
     if (mode === AppMode.POMODORO) {
       setTimeLeft(config.tomatoesToComplete * TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS);
     } else {
@@ -286,35 +333,34 @@ const App = () => {
     
     // Timer View
     return (
-      <div className="w-full h-full flex flex-col items-center animate-fade-in relative overflow-hidden pt-4 pb-4">
-         {/* Decorative background blobs */}
+      <div className="w-full h-full flex flex-col items-center animate-fade-in relative overflow-hidden pt-4 pb-4 justify-between">
          {!customTheme && (
            <>
-            <div className="absolute top-12 right-0 w-32 h-32 bg-tomato-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70 -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
-            <div className="absolute bottom-32 left-0 w-32 h-32 bg-yellow-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70 translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
+            <div className="absolute top-12 right-0 w-48 h-48 bg-tomato-100 rounded-full mix-blend-multiply filter blur-3xl opacity-60 -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+            <div className="absolute bottom-32 left-0 w-48 h-48 bg-yellow-100 rounded-full mix-blend-multiply filter blur-3xl opacity-60 translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
            </>
          )}
 
-        {/* Top Spacer / Mode Switcher */}
-        <div className="flex-1 flex flex-col justify-end items-center pb-6">
-             <div className={`flex bg-white/90 backdrop-blur-sm p-1 rounded-2xl shadow-inner border border-red-100 relative z-10 transition-opacity duration-300 ${status === TimerStatus.IDLE ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        {/* Mode Switcher */}
+        <div className="flex flex-col justify-end items-center pb-2 h-12 shrink-0">
+             <div className={`flex bg-white/60 backdrop-blur-xl p-1 rounded-2xl shadow-sm border border-white/20 relative z-10 transition-opacity duration-300 ${status === TimerStatus.IDLE ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <button 
                 onClick={() => switchMode(AppMode.POMODORO)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 ${mode === AppMode.POMODORO ? 'bg-tomato-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
+                className={`px-4 py-1.5 rounded-xl text-sm font-bold transition-all duration-200 active:scale-95 ${mode === AppMode.POMODORO ? 'bg-white text-tomato-500 shadow-sm' : 'text-gray-500 hover:bg-white/30'}`}
                 >
                 {t('mode_countdown', lang)}
                 </button>
                 <button 
                 onClick={() => switchMode(AppMode.FLOW)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 ${mode === AppMode.FLOW ? 'bg-blue-400 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
+                className={`px-4 py-1.5 rounded-xl text-sm font-bold transition-all duration-200 active:scale-95 ${mode === AppMode.FLOW ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-500 hover:bg-white/30'}`}
                 >
                 {t('mode_flow', lang)}
                 </button>
             </div>
         </div>
 
-        {/* Center: Timer & Configuration */}
-        <div className="flex-[2] flex flex-col items-center justify-center relative">
+        {/* Center: Timer & Picker */}
+        <div className="flex-1 flex flex-col items-center justify-center relative w-full gap-2">
             <TimerDisplay 
                 timeRemaining={mode === AppMode.POMODORO ? timeLeft : elapsedTime}
                 totalDuration={isBreakPhase ? currentBreakDuration * 60 : config.tomatoesToComplete * TOMATO_DURATION_MINUTES * 60}
@@ -326,43 +372,41 @@ const App = () => {
                 feedback={feedback}
             />
 
-            {/* Picker - Positioned directly under timer in a consistent layout slot */}
-            <div className={`transition-all duration-500 overflow-hidden flex flex-col items-center ${status === TimerStatus.IDLE && mode === AppMode.POMODORO ? 'max-h-48 opacity-100 mt-0' : 'max-h-0 opacity-0'}`}>
+            <div className={`transition-all duration-500 overflow-hidden flex flex-col items-center w-full ${status === TimerStatus.IDLE && mode === AppMode.POMODORO ? 'max-h-[220px] opacity-100' : 'max-h-0 opacity-0'}`}>
                  <WheelPicker 
-                    label={t('label_tomatoes', lang)} // Only short label inside picker now
                     min={1} max={8} 
                     value={config.tomatoesToComplete} 
                     onChange={(v) => {
-                        setConfig({...config, tomatoesToComplete: v});
-                        setTimeLeft(v * TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS);
+                        // CRITICAL FIX: Only allow config changes when IDLE to prevent
+                        // layout-shift triggered events from changing time during start.
+                        if (status === TimerStatus.IDLE) {
+                            setConfig({...config, tomatoesToComplete: v});
+                            // Reset timeLeft preview when picker changes
+                            setTimeLeft(v * TOMATO_DURATION_MINUTES * ONE_MINUTE_SECONDS);
+                        }
                     }}
                   />
-                  <div className="text-center text-[10px] font-bold text-gray-400 mt-[-10px] relative z-20">
-                     {config.tomatoesToComplete * TOMATO_DURATION_MINUTES} min
-                  </div>
             </div>
 
-            {/* Placeholder for Flow Mode spacing when picker is hidden */}
              {mode === AppMode.FLOW && status === TimerStatus.IDLE && (
-                <div className="h-32"></div>
+                <div className="h-16"></div>
              )}
         </div>
 
-        {/* Bottom: Action Button - Fixed Position */}
-        <div className="flex-1 flex flex-col justify-center items-center pb-2">
+        {/* Bottom: Action Button - Moved UP slightly via higher pb */}
+        <div className="flex flex-col justify-center items-center pb-12 h-32 shrink-0">
             <div className="relative w-20 h-20 flex items-center justify-center">
                 {status === TimerStatus.IDLE ? (
                     <button 
                         onClick={startTimer}
-                        className="group absolute inset-0 w-20 h-20 bg-tomato-500 rounded-full flex items-center justify-center shadow-cartoon transition-transform active:scale-90 active:shadow-cartoon-active hover:-translate-y-1 z-20"
+                        className="group absolute inset-0 w-20 h-20 bg-tomato-500 rounded-full flex items-center justify-center shadow-lg shadow-tomato-500/30 transition-transform active:scale-90 hover:-translate-y-1 z-20 border-2 border-white/20"
                     >
-                        <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-full transition-opacity"></div>
-                        <PlayIcon className="text-white w-8 h-8 ml-1" />
+                        <PlayIcon className="text-white w-9 h-9 ml-1" />
                     </button>
                 ) : (
                     <button 
                         onClick={cancelTimer}
-                        className="group absolute inset-0 w-20 h-20 bg-white border-4 border-gray-200 rounded-full flex items-center justify-center shadow-cartoon hover:border-red-200 hover:bg-red-50 transition-all active:scale-90 active:shadow-cartoon-active z-20"
+                        className="group absolute inset-0 w-20 h-20 bg-white/80 backdrop-blur-md border-2 border-gray-100 rounded-full flex items-center justify-center shadow-lg hover:border-red-200 hover:bg-red-50/50 transition-all active:scale-90 z-20"
                     >
                         <XIcon className="text-gray-400 group-hover:text-red-500 w-8 h-8 transition-colors" />
                     </button>
@@ -375,41 +419,36 @@ const App = () => {
   };
 
   return (
-      // The High-Realism iPhone Chassis
+    <div id="app-scale-wrapper">
       <div className="iphone-frame">
-        
-        {/* The Clipped Screen Content Area */}
-        <div className="iphone-screen">
+        <div className={`iphone-screen ${customTheme ? 'bg-transparent' : 'bg-cream'}`}>
             
-            {/* Custom Background Layer */}
             {customTheme?.backgroundImage && (
                 <div className="absolute inset-0 z-0">
                     <img src={`data:image/png;base64,${customTheme.backgroundImage}`} alt="Background" className="w-full h-full object-cover opacity-90" />
-                    <div className="absolute inset-0 bg-white/30 backdrop-blur-[2px]"></div>
+                    <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px]"></div>
                 </div>
             )}
 
-            {/* Header - Compact */}
-            <header className="w-full flex justify-between items-center px-5 py-2 pt-10 z-20 bg-white/80 backdrop-blur-sm sticky top-0 border-b border-transparent transition-colors">
-                <div className="flex items-center gap-2">
-                <TomatoIcon className="w-8 h-8 filter drop-shadow-sm" />
-                <h1 className="text-base font-black text-gray-800 tracking-tight">{t('app_title', lang)}</h1>
+            {/* Header - iOS 18 Glass */}
+            <header className="w-full flex justify-between items-center px-6 py-3 pt-10 z-20 bg-white/60 backdrop-blur-2xl sticky top-0 border-b border-white/20 transition-colors">
+                <div className="flex items-center gap-2.5">
+                <TomatoIcon className="w-9 h-9 filter drop-shadow-sm" />
+                <h1 className="text-lg font-black text-gray-800 tracking-tight">{t('app_title', lang)}</h1>
                 </div>
                 <button 
                 onClick={toggleLanguage}
-                className="text-[10px] font-bold text-gray-600 bg-white border border-gray-200 px-2.5 py-1 rounded-full shadow-sm hover:bg-gray-50 transition-all active:scale-95"
+                className="text-[11px] font-bold text-gray-600 bg-white/50 border border-white/40 px-3 py-1.5 rounded-full shadow-sm hover:bg-white transition-all active:scale-95 backdrop-blur-md"
                 >
                 {lang === 'en' ? '中文' : 'EN'}
                 </button>
             </header>
 
-            {/* Main Content Area */}
-            <main className={`flex-1 w-full relative no-scrollbar flex flex-col z-10 ${currentView === 'TIMER' ? 'overflow-hidden' : 'overflow-y-auto'} ${customTheme ? 'bg-transparent' : 'bg-cream rounded-t-[32px] shadow-inner'}`}>
-                {/* Toast Notification - Smaller */}
+            <main className={`flex-1 w-full relative no-scrollbar flex flex-col z-10 ${currentView === 'TIMER' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
                 {showAchievementPopup && (
-                    <div className="fixed top-24 z-[100] animate-bounce-in pointer-events-none left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 text-center">
-                    <div className="bg-yellow-400 text-yellow-900 px-4 py-2 rounded-full shadow-cartoon border-2 border-yellow-500 inline-flex items-center justify-center gap-2 font-black text-xs">
-                        <span>🏆</span>
+                    <div className="fixed top-28 z-[100] animate-bounce-in pointer-events-none left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 text-center">
+                    <div className="bg-white/90 backdrop-blur-xl text-yellow-900 px-5 py-3 rounded-full shadow-glass border border-white/50 inline-flex items-center justify-center gap-2 font-black text-sm">
+                        <span className="text-xl">🏆</span>
                         <span className="truncate">{t('ach_unlocked', lang)} {showAchievementPopup}</span>
                     </div>
                     </div>
@@ -418,39 +457,40 @@ const App = () => {
                 {renderCurrentView()}
             </main>
 
-            {/* Bottom Navigation - Refined */}
-            <nav className="w-full bg-white/90 backdrop-blur-md border-t border-gray-100 pb-4 pt-2 px-4 flex justify-between items-center z-30 shrink-0">
+            {/* Bottom Navigation - iOS 18 Glass */}
+            <nav className="w-full bg-white/60 backdrop-blur-2xl border-t border-white/20 pb-4 pt-3 px-6 flex justify-between items-center z-30 shrink-0">
                 <button 
                 onClick={() => changeView('TIMER')}
-                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'TIMER' ? 'text-tomato-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
+                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'TIMER' ? 'text-tomato-500 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
                 >
-                <ClockIcon className="w-5 h-5 mb-0.5" />
-                <span className="text-[9px] font-black uppercase tracking-wide">{t('nav_timer', lang)}</span>
+                <ClockIcon className="w-6 h-6 mb-1" />
+                <span className="text-[10px] font-bold uppercase tracking-wide">{t('nav_timer', lang)}</span>
                 </button>
                 <button 
                 onClick={() => changeView('STATS')}
-                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'STATS' ? 'text-tomato-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
+                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'STATS' ? 'text-tomato-500 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
                 >
-                <ChartIcon className="w-5 h-5 mb-0.5" />
-                <span className="text-[9px] font-black uppercase tracking-wide">{t('nav_stats', lang)}</span>
+                <ChartIcon className="w-6 h-6 mb-1" />
+                <span className="text-[10px] font-bold uppercase tracking-wide">{t('nav_stats', lang)}</span>
                 </button>
                 <button 
                 onClick={() => changeView('ACHIEVEMENTS')}
-                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'ACHIEVEMENTS' ? 'text-tomato-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
+                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'ACHIEVEMENTS' ? 'text-tomato-500 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
                 >
-                <TrophyIcon className="w-5 h-5 mb-0.5" />
-                <span className="text-[9px] font-black uppercase tracking-wide">{t('nav_achievements', lang)}</span>
+                <TrophyIcon className="w-6 h-6 mb-1" />
+                <span className="text-[10px] font-bold uppercase tracking-wide">{t('nav_achievements', lang)}</span>
                 </button>
                 <button 
                 onClick={() => changeView('AI_THEME')}
-                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'AI_THEME' ? 'text-purple-500 scale-105' : 'text-gray-300 hover:text-gray-400'}`}
+                className={`flex flex-col items-center flex-1 p-1 transition-all active:scale-95 ${currentView === 'AI_THEME' ? 'text-purple-500 scale-105' : 'text-gray-400 hover:text-gray-500'}`}
                 >
-                <MagicIcon className="w-5 h-5 mb-0.5" />
-                <span className="text-[9px] font-black uppercase tracking-wide">{t('nav_ai', lang)}</span>
+                <MagicIcon className="w-6 h-6 mb-1" />
+                <span className="text-[10px] font-bold uppercase tracking-wide">{t('nav_ai', lang)}</span>
                 </button>
             </nav>
         </div>
       </div>
+    </div>
   );
 };
 

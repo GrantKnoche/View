@@ -19,13 +19,12 @@ export const generateBackgroundImage = async (prompt: string, previousImageBase6
         const ai = getAiClient();
         
         let contents;
-        let model = 'gemini-2.5-flash-image';
-
-        // Base prompt to ensure it fits the app style (Cartoon/Wallpaper)
-        const enhancedPrompt = `A cute, cartoon-style wallpaper, soft pastel colors, suitable for a productivity app background. ${prompt}`;
+        const model = 'gemini-2.5-flash-image';
 
         if (previousImageBase64) {
-            // Editing mode
+            // Editing mode: Pass the existing image and the user's specific instruction.
+            // We use the raw prompt here to allow commands like "Add a retro filter" or "Remove the object"
+            // without the generative style enforcement overriding the edit intent.
             contents = {
                 parts: [
                     {
@@ -34,11 +33,12 @@ export const generateBackgroundImage = async (prompt: string, previousImageBase6
                             data: previousImageBase64
                         }
                     },
-                    { text: enhancedPrompt }
+                    { text: prompt }
                 ]
             };
         } else {
-            // Generation mode
+            // Generation mode: Enforce the app's aesthetic.
+            const enhancedPrompt = `A cute, cartoon-style wallpaper, soft pastel colors, suitable for a productivity app background. ${prompt}`;
             contents = {
                 parts: [{ text: enhancedPrompt }]
             };
@@ -47,11 +47,7 @@ export const generateBackgroundImage = async (prompt: string, previousImageBase6
         const response = await ai.models.generateContent({
             model: model,
             contents: contents,
-            config: {
-                 // For flash image, we rely on default aspect ratio 1:1 or specify if supported. 
-                 // We will crop via CSS cover.
-                 // responseMimeType is not supported for this model.
-            }
+            // Gemini 2.5 Flash Image handles image generation/editing via generateContent
         });
 
         // Parse response to find image data

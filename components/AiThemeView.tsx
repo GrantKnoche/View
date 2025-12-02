@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { generateBackgroundImage } from '../utils/aiUtils';
 import { playClickSound, playActionSound } from '../utils/soundUtils';
@@ -69,6 +70,22 @@ export const AiThemeView: React.FC<AiThemeViewProps> = ({ lang, onThemeSet, curr
                  </p>
             </div>
 
+            {/* Current Status / Context for Editing */}
+            {currentTheme && !generatedImage && (
+                <div className="text-center flex flex-col items-center mb-4">
+                    <p className="text-[10px] font-bold text-gray-400 mb-2">Editing Current Theme</p>
+                    <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-purple-200 shadow-sm mb-3">
+                         <img src={`data:image/png;base64,${currentTheme.backgroundImage}`} alt="Current" className="w-full h-full object-cover" />
+                    </div>
+                    <button
+                        onClick={handleReset}
+                        className="px-4 py-2 rounded-full bg-gray-100 text-gray-400 font-bold text-xs hover:bg-gray-200"
+                    >
+                        {t('ai_reset', lang)}
+                    </button>
+                </div>
+            )}
+
             {/* Input Area */}
             <div className="bg-white rounded-3xl shadow-cartoon border border-purple-100 p-4 mb-6">
                 <textarea 
@@ -104,18 +121,7 @@ export const AiThemeView: React.FC<AiThemeViewProps> = ({ lang, onThemeSet, curr
                  </div>
             )}
 
-            {/* Current Status */}
-            {currentTheme && !generatedImage && (
-                <div className="mt-auto text-center">
-                    <p className="text-[10px] font-bold text-gray-400 mb-2">Current Theme Active</p>
-                    <button
-                        onClick={handleReset}
-                        className="px-4 py-2 rounded-full bg-gray-100 text-gray-400 font-bold text-xs hover:bg-gray-200"
-                    >
-                        {t('ai_reset', lang)}
-                    </button>
-                </div>
-            )}
+            {/* Status when not generated and no theme is just default view */}
         </div>
     );
 };
