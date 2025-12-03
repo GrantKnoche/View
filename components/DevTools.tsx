@@ -1,245 +1,205 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { AppMode, SessionRecord, TimerStatus } from '../types';
-import { STORAGE_KEY_HISTORY, STORAGE_KEY_ACHIEVEMENTS, TOMATO_DURATION_MINUTES, ONE_MINUTE_SECONDS } from '../constants';
+import React, { useState, useEffect, useRef } from 'react';
+import { SessionRecord } from '../types';
 
 interface DevToolsProps {
-  mode: AppMode;
-  status: TimerStatus;
-  
-  // Timer Manipulation
-  setTimeLeft: (val: number) => void;
-  endTimeRef: React.MutableRefObject<number | null>;
-  setAccumulatedTime: React.Dispatch<React.SetStateAction<number>>;
-  accumulatedTime: number;
-  
-  // Logic Triggers
-  onForceComplete: () => void;
-  
-  // Data Manipulation
-  setHistory: React.Dispatch<React.SetStateAction<SessionRecord[]>>;
-  setUnlockedAchievements: React.Dispatch<React.SetStateAction<any[]>>;
+  mode: 'POMODORO' | 'FLOW';
+  onSetCountdown: (totalSeconds: number) => void;
+  onAddFlowTime: (seconds: number) => void;
+  onInjectHistory: (records: SessionRecord[]) => void;
 }
 
-export const DevTools: React.FC<DevToolsProps> = ({
-  mode,
-  status,
-  setTimeLeft,
-  endTimeRef,
-  setAccumulatedTime,
-  accumulatedTime,
-  onForceComplete,
-  setHistory,
-  setUnlockedAchievements
+export const DevTools: React.FC<DevToolsProps> = ({ 
+  mode, 
+  onSetCountdown, 
+  onAddFlowTime, 
+  onInjectHistory 
 }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  
-  // Dragging State
-  const [position, setPosition] = useState({ x: -1, y: 100 }); // -1 x means "use default right css"
+  // Initial position: roughly right side (window width - 350px)
+  const [position, setPosition] = useState({ x: window.innerWidth - 350, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
-  const panelRef = useRef<HTMLDivElement>(null);
 
-  // Check URL param on mount
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('dev') === 'true') {
-      setIsVisible(true);
-      // Initialize position to verify it exists
-      if (position.x === -1) {
-          setPosition({ x: window.innerWidth - 300, y: 100 });
-      }
-    }
-  }, []);
+  // Inputs for Countdown
+  const [manualMin, setManualMin] = useState('0');
+  const [manualSec, setManualSec] = useState('10');
 
-  // Drag Event Handlers
+  // 1. Drag Logic
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (panelRef.current) {
-      setIsDragging(true);
-      const rect = panelRef.current.getBoundingClientRect();
-      dragOffset.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      };
-    }
+    setIsDragging(true);
+    dragOffset.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    };
   };
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      const newX = e.clientX - dragOffset.current.x;
-      const newY = e.clientY - dragOffset.current.y;
-      setPosition({ x: newX, y: newY });
-    }
-  }, [isDragging]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  // Global listeners for drag (so you can move mouse fast outside the handle)
   useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      setPosition({
+        x: e.clientX - dragOffset.current.x,
+        y: e.clientY - dragOffset.current.y
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
-    } else {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
     }
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+  }, [isDragging]);
 
+  // 2. Handlers
+  const handleApplyCountdown = () => {
+    const m = parseInt(manualMin) || 0;
+    const s = parseInt(manualSec) || 0;
+    onSetCountdown(m * 60 + s);
+  };
 
-  if (!isVisible) return null;
-
-  // --- Logic Implementations ---
-
-  const handleSetTimeRemaining = (seconds: number) => {
-    if (status !== TimerStatus.RUNNING && status !== TimerStatus.RESTING) return;
+  const handleGenerateData = () => {
+    const records: SessionRecord[] = [];
+    const today = new Date();
     
-    setTimeLeft(seconds);
-    endTimeRef.current = Date.now() + (seconds * 1000);
-  };
+    // Time Buckets definition
+    const buckets = [
+      { label: 'Dawn', minH: 0, maxH: 5 },
+      { label: 'Morn', minH: 6, maxH: 10 },
+      { label: 'Noon', minH: 11, maxH: 12 },
+      { label: 'Aftn', minH: 13, maxH: 16 },
+      { label: 'Eve', minH: 17, maxH: 18 },
+      { label: 'Night', minH: 19, maxH: 23 },
+    ];
 
-  const handleFastForwardFlow = (seconds: number) => {
-    setAccumulatedTime(prev => prev + seconds);
-  };
+    // Generate 7 random entries
+    for (let i = 0; i < 7; i++) {
+      // Random day offset: -7 to +7
+      const dayOffset = Math.floor(Math.random() * 15) - 7;
+      
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + dayOffset);
 
-  const generateRandomRecord = (dateOffsetDays: number): SessionRecord => {
-    const d = new Date();
-    d.setDate(d.getDate() - dateOffsetDays);
-    d.setHours(8 + Math.floor(Math.random() * 14), Math.floor(Math.random() * 60));
-    
-    return {
-      id: crypto.randomUUID(),
-      timestamp: d.getTime(),
-      type: 'TOMATO',
-      durationMinutes: TOMATO_DURATION_MINUTES,
-      completed: true
-    };
-  };
+      // Random Bucket
+      const bucket = buckets[Math.floor(Math.random() * buckets.length)];
+      
+      // Random hour within bucket
+      const hour = Math.floor(Math.random() * (bucket.maxH - bucket.minH + 1)) + bucket.minH;
+      const minute = Math.floor(Math.random() * 60);
 
-  const injectTodayData = () => {
-    const newRecords: SessionRecord[] = [];
-    for (let i = 0; i < 5; i++) {
-      newRecords.push(generateRandomRecord(0));
+      targetDate.setHours(hour, minute, 0, 0);
+
+      const record: SessionRecord = {
+        id: crypto.randomUUID(),
+        timestamp: targetDate.getTime(),
+        type: 'TOMATO',
+        durationMinutes: 25,
+        completed: true
+      };
+      records.push(record);
     }
-    saveAndReload(newRecords);
-  };
 
-  const fillWeekData = () => {
-    const newRecords: SessionRecord[] = [];
-    for (let day = 0; day < 7; day++) {
-      const count = 3 + Math.floor(Math.random() * 6);
-      for (let i = 0; i < count; i++) {
-        newRecords.push(generateRandomRecord(day));
-      }
-    }
-    saveAndReload(newRecords);
-  };
-
-  const clearAllData = () => {
-    if (confirm('确定要清空所有历史数据吗？')) {
-      localStorage.removeItem(STORAGE_KEY_HISTORY);
-      localStorage.removeItem(STORAGE_KEY_ACHIEVEMENTS);
-      setHistory([]);
-      setUnlockedAchievements([]);
-      window.location.reload(); 
-    }
-  };
-
-  const saveAndReload = (newRecords: SessionRecord[]) => {
-    const existingStr = localStorage.getItem(STORAGE_KEY_HISTORY);
-    const existing: SessionRecord[] = existingStr ? JSON.parse(existingStr) : [];
-    const combined = [...existing, ...newRecords];
-    localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(combined));
-    setHistory(combined);
+    onInjectHistory(records);
+    alert(`Injected ${records.length} records across buckets! Check Stats.`);
   };
 
   return (
     <div 
-      ref={panelRef}
-      className="fixed w-[280px] bg-black/85 backdrop-blur-xl rounded-xl border border-white/20 shadow-2xl z-[9999] text-white font-mono text-xs overflow-hidden transition-shadow"
+      className="fixed flex flex-col w-72 bg-black/90 backdrop-blur-xl rounded-xl shadow-2xl overflow-hidden text-xs font-mono text-white/90 transition-opacity duration-200"
       style={{ 
         left: position.x, 
         top: position.y,
-        boxShadow: isDragging ? '0 20px 50px rgba(0,0,0,0.5)' : '0 10px 30px rgba(0,0,0,0.3)'
+        zIndex: 999999, // Extremely high Z-Index
+        border: '2px solid red' // Temporary Debug Border
       }}
     >
-      {/* Draggable Header */}
+      {/* Title Bar (Draggable) */}
       <div 
         onMouseDown={handleMouseDown}
-        className="flex justify-between items-center px-4 py-2 bg-white/10 border-b border-white/10 cursor-move select-none hover:bg-white/20 transition-colors"
-        title="按住拖动面板"
+        className="bg-gray-800 p-2 border-b border-white/10 cursor-move flex justify-between items-center select-none hover:bg-gray-700"
       >
-        <h3 className="font-bold text-green-400 flex items-center gap-2">
-            <span>🔧</span> 开发者调试面板
-        </h3>
-        <span className="text-[9px] text-gray-400 bg-black/30 px-1.5 py-0.5 rounded">v2.0</span>
+        <span className="font-bold text-emerald-400">⚡ DEVTOOLS (UNLOCKED)</span>
+        <div className="flex gap-2">
+          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+          <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+        </div>
       </div>
 
-      <div className="p-4 space-y-4 max-h-[80vh] overflow-y-auto no-scrollbar" onMouseDown={e => e.stopPropagation()}> 
+      <div className="p-4 space-y-4">
         
-        {/* 1. Time Control */}
-        <div>
-          <h4 className="font-bold text-gray-400 mb-2 uppercase text-[10px]">⏳ 时间控制 (Time)</h4>
-          
-          {status === TimerStatus.RUNNING || status === TimerStatus.RESTING ? (
-             <div className="grid grid-cols-2 gap-2">
-               {mode === AppMode.POMODORO || status === TimerStatus.RESTING ? (
-                 <>
-                   <button onClick={() => handleSetTimeRemaining(5)} className="bg-blue-600 hover:bg-blue-500 py-1.5 rounded text-white font-bold transition-transform active:scale-95">
-                     剩 5 秒
-                   </button>
-                   <button onClick={() => handleSetTimeRemaining(60)} className="bg-blue-800 hover:bg-blue-700 py-1.5 rounded text-white font-bold transition-transform active:scale-95">
-                     剩 1 分钟
-                   </button>
-                 </>
-               ) : (
-                  <button onClick={() => handleFastForwardFlow(60)} className="col-span-2 bg-indigo-600 hover:bg-indigo-500 py-1.5 rounded text-white font-bold transition-transform active:scale-95">
-                    快进 +1 分钟
-                  </button>
-               )}
-             </div>
-          ) : (
-            <div className="text-gray-500 italic bg-white/5 p-2 rounded text-center border border-white/5">
-                计时器未运行
+        {/* Module A: Countdown */}
+        <div className={`space-y-2 ${mode !== 'POMODORO' ? 'opacity-30 pointer-events-none' : ''}`}>
+          <div className="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Countdown Control</div>
+          <div className="flex gap-2 items-center">
+            <div className="flex items-center gap-1 bg-white/5 rounded p-1">
+              <input 
+                type="number" 
+                value={manualMin} 
+                onChange={e => setManualMin(e.target.value)}
+                className="w-8 bg-transparent text-right outline-none border-b border-transparent focus:border-emerald-500" 
+              />
+              <span className="text-gray-500">m</span>
             </div>
-          )}
-        </div>
-
-        {/* 2. Mock Data */}
-        <div>
-          <h4 className="font-bold text-gray-400 mb-2 uppercase text-[10px]">📊 数据伪造 (Data Mock)</h4>
-          <div className="flex flex-col gap-2">
-            <button onClick={injectTodayData} className="bg-emerald-700 hover:bg-emerald-600 py-1.5 px-3 rounded text-left flex justify-between items-center transition-transform active:scale-95">
-              <span>注入今日数据 (5条)</span>
-              <span className="opacity-50 text-[10px]">+</span>
-            </button>
-            <button onClick={fillWeekData} className="bg-emerald-900 hover:bg-emerald-800 py-1.5 px-3 rounded text-left flex justify-between items-center transition-transform active:scale-95">
-              <span>填满本周 (随机)</span>
-              <span className="opacity-50 text-[10px]">++</span>
-            </button>
-            <button onClick={clearAllData} className="bg-red-900/80 hover:bg-red-800 py-1.5 px-3 rounded text-left flex justify-between items-center text-red-100 border border-red-800 transition-transform active:scale-95">
-              <span>⚠️ 清空所有数据</span>
-              <span className="opacity-50 text-[10px]">DEL</span>
+            <div className="flex items-center gap-1 bg-white/5 rounded p-1">
+              <input 
+                type="number" 
+                value={manualSec} 
+                onChange={e => setManualSec(e.target.value)}
+                className="w-8 bg-transparent text-right outline-none border-b border-transparent focus:border-emerald-500" 
+              />
+              <span className="text-gray-500">s</span>
+            </div>
+            <button 
+              onClick={handleApplyCountdown}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1 px-2 rounded transition-colors"
+            >
+              Apply
             </button>
           </div>
         </div>
 
-        {/* 3. Debug State */}
-        <div>
-          <h4 className="font-bold text-gray-400 mb-2 uppercase text-[10px]">🛠 状态调试 (Status)</h4>
-          <button onClick={onForceComplete} className="w-full bg-yellow-700 hover:bg-yellow-600 py-2 rounded font-bold text-yellow-100 mb-2 shadow-sm active:scale-95 transition-transform">
-            🚀 强制完成 (Force Complete)
+        {/* Module B: Flow */}
+        <div className={`space-y-2 ${mode !== 'FLOW' ? 'opacity-30 pointer-events-none' : ''}`}>
+          <div className="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Flow Control (FF)</div>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { l: '+10s', v: 10 },
+              { l: '+1m', v: 60 },
+              { l: '+2m', v: 120 },
+              { l: '+5m', v: 300 }
+            ].map((btn, i) => (
+              <button 
+                key={i}
+                onClick={() => onAddFlowTime(btn.v)}
+                className="bg-blue-600 hover:bg-blue-500 text-white py-1 rounded text-[10px] font-bold transition-colors"
+              >
+                {btn.l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Module C: Data Injection */}
+        <div className="pt-2 border-t border-white/10 space-y-2">
+          <div className="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Smart Data Injection</div>
+          <button 
+            onClick={handleGenerateData}
+            className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 rounded flex items-center justify-center gap-2 transition-colors group"
+          >
+             <span>Generate Test Data</span>
+             <span className="group-hover:rotate-12 transition-transform">🎲</span>
           </button>
-          <div className="text-[9px] text-gray-500 mt-2 bg-black/40 p-2 rounded font-mono">
-              Mode: {mode === AppMode.POMODORO ? '倒计时' : '心流'}<br/>
-              Status: {status}
-          </div>
+          <p className="text-[9px] text-gray-500 leading-tight">
+            Injects 7 days of random records (Dawn-Night buckets) into local storage.
+          </p>
         </div>
+
       </div>
     </div>
   );

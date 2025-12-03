@@ -1,64 +1,52 @@
 
-
 import { GoogleGenAI } from "@google/genai";
 import { Language } from "../types";
 
 const getAiClient = () => {
-    // API_KEY must be provided via process.env.API_KEY as per system rules
-    // The system prompt ensures process.env.API_KEY is available.
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // SECURITY: Use system environment variable for API Key
+    // Strictly adhere to system rule process.env.API_KEY
+    const key = process.env.API_KEY;
+    
+    if (!key) {
+        throw new Error("Missing API Key.");
+    }
+    return new GoogleGenAI({ apiKey: key });
 };
 
 /**
  * Generate a background image using Gemini 2.5 Flash Image.
- * @param prompt User's text description
- * @param previousImageBase64 Optional base64 string of existing image to edit
+ * (Keeping previous logic for image gen)
  */
 export const generateBackgroundImage = async (prompt: string, previousImageBase64?: string): Promise<string | null> => {
     try {
         const ai = getAiClient();
-        
-        let contents;
         const model = 'gemini-2.5-flash-image';
 
+        let contents;
         if (previousImageBase64) {
-            // Editing mode: Pass the existing image and the user's specific instruction.
-            // We use the raw prompt here to allow commands like "Add a retro filter" or "Remove the object"
-            // without the generative style enforcement overriding the edit intent.
             contents = {
                 parts: [
-                    {
-                        inlineData: {
-                            mimeType: 'image/png',
-                            data: previousImageBase64
-                        }
-                    },
+                    { inlineData: { mimeType: 'image/png', data: previousImageBase64 } },
                     { text: prompt }
                 ]
             };
         } else {
-            // Generation mode: Enforce the app's aesthetic.
             const enhancedPrompt = `A cute, cartoon-style wallpaper, soft pastel colors, suitable for a productivity app background. ${prompt}`;
-            contents = {
-                parts: [{ text: enhancedPrompt }]
-            };
+            contents = { parts: [{ text: enhancedPrompt }] };
         }
 
         const response = await ai.models.generateContent({
             model: model,
             contents: contents,
-            // Gemini 2.5 Flash Image handles image generation/editing via generateContent
         });
 
-        // Parse response to find image data
         if (response.candidates && response.candidates[0].content.parts) {
             for (const part of response.candidates[0].content.parts) {
                 if (part.inlineData && part.inlineData.data) {
-                    return part.inlineData.data; // Base64 string
+                    return part.inlineData.data;
                 }
             }
         }
-        
         return null;
     } catch (error) {
         console.error("AI Generation Error:", error);
@@ -67,19 +55,23 @@ export const generateBackgroundImage = async (prompt: string, previousImageBase6
 };
 
 /**
- * Generate a text summary of the user's statistics.
+ * Generate a personalized statistics summary.
+ * Updated to use gemini-2.5-flash and the new cheerful persona.
  */
 export const generateStatsSummary = async (statsContext: string, lang: Language): Promise<string> => {
     try {
         const ai = getAiClient();
-        // Using Flash for quick text tasks
+        // UPDATED MODEL: gemini-2.5-flash
         const model = 'gemini-2.5-flash';
 
-        const prompt = `
-        You are a friendly, encouraging productivity coach for a "Pomodoro" app.
+        const promptText = `
+        Role: You are an energetic, humorous, and supportive Time Management Coach / Best Friend.
+        Task: Analyze the user's productivity data and write a short report (under 100 words).
         
-        Analyze the following user statistics and provide a short, 2-3 sentence summary and advice.
-        Keep it warm, concise, and motivating.
+        Style:
+        - Tone: Cheerful, friendly, encouraging, slightly humorous. Use emojis (✨🍅🔥).
+        - Content: Praise their persistence, point out their peak productivity time (e.g., "Night Owl" or "Early Bird"), and give 1 specific rest tip.
+        - Formatting: No headers. Just the paragraph.
         
         User Data:
         ${statsContext}
@@ -89,12 +81,12 @@ export const generateStatsSummary = async (statsContext: string, lang: Language)
 
         const response = await ai.models.generateContent({
             model: model,
-            contents: prompt,
+            contents: promptText,
         });
 
-        return response.text || (lang === 'zh' ? "暂时无法生成分析。" : "Could not generate analysis.");
+        return response.text || (lang === 'zh' ? "AI 休息中..." : "AI is taking a nap...");
     } catch (error) {
         console.error("AI Summary Error:", error);
-        throw error;
+        return lang === 'zh' ? "请检查 API Key 配置。" : "Please check API Key.";
     }
 };

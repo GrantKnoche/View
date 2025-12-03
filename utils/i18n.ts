@@ -30,6 +30,7 @@ const translations: Dictionary = {
   'msg_reward_base': { en: 'Session Complete!', zh: '专注完成！' },
   'msg_reward_bonus': { en: '+{min}m Bonus!', zh: '+{min} 分钟奖励！' },
   'card_tomato_complete': { en: '✓ One Tomato Completed!', zh: '✓ 完成一个番茄！' },
+  'card_session_complete': { en: '✓ {count} Tomatoes Completed!', zh: '✓ 完成了 {count} 个番茄！' },
 
   // Nav
   'nav_timer': { en: 'Timer', zh: '计时' },

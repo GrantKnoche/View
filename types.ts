@@ -1,5 +1,3 @@
-
-
 export enum AppMode {
   POMODORO = 'POMODORO', // Countdown
   FLOW = 'FLOW',         // Count-up
@@ -26,12 +24,7 @@ export type ThemeColor = 'red' | 'green' | 'blue';
 
 export type Language = 'en' | 'zh';
 
-export type AppView = 'TIMER' | 'STATS' | 'ACHIEVEMENTS' | 'AI_THEME';
-
-export interface CustomTheme {
-  backgroundImage?: string; // Base64 data URI
-  prompt?: string;
-}
+export type AppView = 'TIMER' | 'STATS' | 'ACHIEVEMENTS';
 
 export interface SessionRecord {
   id: string;
@@ -67,4 +60,9 @@ export interface FeedbackState {
   type: 'REWARD' | 'BROKEN' | 'ENCOURAGE' | null;
   message?: string;
   extraData?: any;
+}
+
+export interface CustomTheme {
+  backgroundImage: string;
+  prompt: string;
 }

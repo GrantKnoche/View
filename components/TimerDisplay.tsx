@@ -4,7 +4,6 @@ import { TimerStatus, AppMode, Language, FeedbackState } from '../types';
 import { formatTime } from '../utils/timeUtils';
 import { t } from '../utils/i18n';
 import { TOMATO_DURATION_MINUTES } from '../constants';
-import { CheckCircleIcon, XIcon } from './Icons';
 
 interface TimerDisplayProps {
   timeRemaining: number;
@@ -28,11 +27,13 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
   feedback
 }) => {
   
+  // --- Progress Logic ---
   let percentage = 0;
   
   if (mode === AppMode.POMODORO) {
     const singleDuration = TOMATO_DURATION_MINUTES * 60;
     const timeLeftInCurrent = timeRemaining % singleDuration;
+    // Fix 0% flash at start of next tomato
     const effectiveTimeLeft = timeLeftInCurrent === 0 && timeRemaining > 0 ? singleDuration : timeLeftInCurrent;
     percentage = ((singleDuration - effectiveTimeLeft) / singleDuration) * 100;
     
@@ -46,113 +47,121 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
 
   percentage = Math.min(100, Math.max(0, percentage));
 
+  // --- State Flags ---
   const isResting = status === TimerStatus.RESTING;
   const isBroken = feedback.type === 'BROKEN';
+  const isPaused = status === TimerStatus.PAUSED;
   const isReward = feedback.type === 'REWARD';
-  const isCompleted = percentage >= 99.5 && mode === AppMode.POMODORO; // Only auto-complete visual in Pomodoro
+  const isRestEnding = isResting && timeRemaining <= 10 && timeRemaining > 0;
 
-  let containerClasses = "border-tomato-600 bg-tomato-100";
-  if (isResting) containerClasses = "border-leaf-500 bg-leaf-100";
-  if (isBroken) containerClasses = "border-gray-500 bg-gray-300 grayscale scale-95";
+  // --- Claymorphism Styles ---
+  
+  // 1. Container (The Shell)
+  const clayShadow = "shadow-[inset_-10px_-10px_20px_rgba(0,0,0,0.05),inset_10px_10px_20px_rgba(255,255,255,0.6),10px_20px_30px_rgba(0,0,0,0.1)]";
+  
+  let bgClass = "bg-[#FF9F9F]"; // Pastel Red
+  if (isResting) bgClass = "bg-[#A7F3D0]"; // Pastel Green
+  if (isBroken || isPaused) bgClass = "bg-gray-200";
 
-  let fillClasses = "bg-tomato-500";
-  if (isResting) fillClasses = "bg-leaf-500";
-  if (isBroken) fillClasses = "bg-gray-600";
+  // 2. Liquid (The Fill) - Slightly darker tone of the container
+  let fillClass = "bg-[#FF6B6B]"; // Vibrant Pastel Red
+  if (isResting) fillClass = "bg-[#6EE7B7]"; // Vibrant Pastel Green
+  if (isBroken || isPaused) fillClass = "bg-gray-300";
 
-  const transitionSpeed = isBroken ? 'duration-100' : 'duration-500';
+  // 3. Status Badge (Glassy Pill) - UNIFIED STYLE
+  // Using a fixed semi-transparent background to let the underlying color show through naturally.
+  // This avoids "gray box on red background" glitches during transitions.
+  const badgeBase = "backdrop-blur-md shadow-sm border transition-colors duration-300 px-4 py-1.5 rounded-full font-bold text-xs";
+  const badgeGlass = "bg-white/25 border-white/30"; // Constant background
+  
+  let badgeTextColor = "text-white"; // Default text color
+
+  if (isBroken) {
+      badgeTextColor = "text-gray-600";
+  } else if (isResting) {
+      badgeTextColor = "text-[#064E3B]";
+  } else if (status === TimerStatus.RUNNING && mode === AppMode.POMODORO) {
+      badgeTextColor = "text-[#7F1D1D]";
+  }
+  // For Idle / Flow, we stick to white text on the semi-transparent background.
+
+  const statusBadgeClasses = `${badgeBase} ${badgeGlass} ${badgeTextColor}`;
+  const transitionSpeed = isBroken ? 'duration-100' : 'duration-1000';
 
   return (
     <div className="relative w-80 h-80 flex items-center justify-center">
       
-      {/* Broken Overlay Badge */}
-      {isBroken && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-            <div className="bg-white/80 backdrop-blur-md px-5 py-4 rounded-3xl shadow-glass border border-white/40 animate-elastic-pop flex flex-col items-center gap-2">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-500">
-                   <XIcon className="w-7 h-7" />
-                </div>
-                <div className="text-gray-700 font-black text-base whitespace-nowrap px-2">{t('msg_broken', lang)}</div>
-            </div>
-        </div>
-      )}
-
-      {/* Completion / Reward Card Overlay */}
-      {isReward && (
-        <div className="absolute z-50 animate-elastic-pop top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[120%]">
-             <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-glass border border-yellow-200 p-4 flex flex-col items-center gap-2">
-                 <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-500">
-                    <CheckCircleIcon className="w-7 h-7" />
-                 </div>
-                 <h3 className="text-base font-black text-gray-800 text-center leading-tight">
-                    {t('card_tomato_complete', lang)}
-                 </h3>
-                 {feedback.extraData?.bonus > 0 && (
-                     <div className="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-xs font-bold">
-                        {t('msg_reward_bonus', lang, { min: feedback.extraData.bonus })}
-                     </div>
-                 )}
-             </div>
-        </div>
-      )}
-
-      {/* External Ripple */}
-      {(isCompleted || isReward) && (
-        <>
-            <div className="absolute inset-0 rounded-full bg-tomato-300 opacity-0 animate-ripple"></div>
-            <div className="absolute inset-0 rounded-full bg-tomato-300 opacity-0 animate-ripple" style={{ animationDelay: '0.3s' }}></div>
-        </>
-      )}
-
-      {/* Main Tomato Container - INCREASED SIZE w-64 h-64 (256px) */}
-      <div className={`relative w-64 h-64 rounded-full overflow-hidden border-[6px] shadow-2xl transition-all ${transitionSpeed}
-        ${containerClasses} 
-        ${isReward ? 'animate-bulge' : ''}
-        ${isBroken ? 'animate-cartoon-shake' : ''}
+      {/* Main 3D Clay Container - INCREASED SIZE w-64 h-64 (256px) */}
+      <div className={`relative w-64 h-64 rounded-full overflow-hidden transition-all ease-in-out ${transitionSpeed}
+        ${bgClass} 
+        ${clayShadow}
+        ${isReward ? 'scale-105 shadow-[0_0_50px_rgba(255,200,200,0.6)]' : ''}
+        ${isRestEnding ? 'animate-pulse' : ''} 
       `}>
         
-        {/* Liquid Fill */}
+        {/* Liquid Fill (Clipped inside) */}
         <div 
-          className={`absolute bottom-0 left-0 right-0 w-full transition-all ease-in-out ${isBroken ? 'duration-100' : 'duration-1000'} ${fillClasses}`}
-          style={{ height: `${percentage}%` }}
+          className={`absolute bottom-0 left-0 right-0 w-full transition-all ease-in-out ${isBroken ? 'duration-100' : 'duration-1000'} ${fillClass}`}
+          style={{ height: `${percentage}%`, opacity: 0.8 }}
         >
-             <div className="w-full h-2 bg-white opacity-20 absolute top-0"></div>
+             {/* Subtle Surface Line */}
+             <div className="w-full h-1 bg-white opacity-30 absolute top-0"></div>
         </div>
 
-        {/* Shine */}
-        <div className="absolute top-6 left-8 w-16 h-8 bg-white opacity-30 rounded-full transform -rotate-45 pointer-events-none filter blur-sm"></div>
+        {/* Specular Highlight (The 'Glossy' Look) */}
+        <div className="absolute top-8 left-10 w-20 h-10 bg-gradient-to-br from-white to-transparent opacity-40 rounded-full transform -rotate-45 pointer-events-none filter blur-[2px]"></div>
+        <div className="absolute bottom-8 right-10 w-8 h-8 bg-white opacity-10 rounded-full pointer-events-none filter blur-[4px]"></div>
         
-        {/* Content (Time) */}
+        {/* Content (Time & Status) */}
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center">
-            <span className={`text-6xl font-black text-white drop-shadow-md tracking-tighter tabular-nums font-mono transition-opacity ${isBroken ? 'opacity-50' : 'opacity-100'}`}>
+            
+            {/* Timer Digits - Removed 'blur-sm' for isBroken state, kept for Paused */}
+            <span className={`text-[4rem] leading-none font-black text-white drop-shadow-sm tracking-tight tabular-nums font-[Nunito] transition-opacity ${isPaused && !isBroken ? 'opacity-40 blur-sm' : 'opacity-100'}`}>
               {formatTime(timeRemaining)}
             </span>
 
-             {!isBroken && (
-                <div className="absolute top-44 w-full flex justify-center">
-                    <div className="text-xs font-bold text-white/90 bg-black/10 px-3 py-1 rounded-full backdrop-blur-sm border border-white/10">
-                        {status === TimerStatus.IDLE && mode === AppMode.POMODORO && t('status_ready_focus', lang)}
-                        {status === TimerStatus.IDLE && mode === AppMode.FLOW && t('status_ready_flow', lang)}
-                        
-                        {status === TimerStatus.RUNNING && mode === AppMode.POMODORO && t('status_tomato_batch', lang, { current: currentTomatoIndex, total: totalTomatoes })}
-                        {status === TimerStatus.RUNNING && mode === AppMode.FLOW && t('status_flowing', lang)}
-                        
-                        {status === TimerStatus.RESTING && t('status_relax', lang)}
+             {/* Status Pill - merged logic for broken state */}
+             {!isPaused && (
+                <div className="absolute top-[65%] w-full flex justify-center">
+                    <div className={statusBadgeClasses}>
+                        {isBroken ? (
+                            <> {t('msg_broken', lang)} 💔 </>
+                        ) : (
+                            <>
+                                {status === TimerStatus.IDLE && mode === AppMode.POMODORO && t('status_ready_focus', lang)}
+                                {status === TimerStatus.IDLE && mode === AppMode.FLOW && t('status_ready_flow', lang)}
+                                
+                                {status === TimerStatus.RUNNING && mode === AppMode.POMODORO && t('status_tomato_batch', lang, { current: currentTomatoIndex, total: totalTomatoes })}
+                                {status === TimerStatus.RUNNING && mode === AppMode.FLOW && t('status_flowing', lang)}
+                                
+                                {status === TimerStatus.RESTING && t('status_relax', lang)}
+                            </>
+                        )}
                     </div>
                 </div>
              )}
+             
+             {isPaused && !isBroken && (
+                 <div className="absolute top-[65%] w-full flex justify-center">
+                     <div className="text-xs font-black px-4 py-1.5 rounded-full bg-white/20 text-white border border-white/20 uppercase tracking-widest backdrop-blur-md">
+                         Paused
+                     </div>
+                 </div>
+             )}
 
-            <div className="absolute bottom-10 text-[10px] font-bold text-white/80 uppercase tracking-widest drop-shadow-sm px-4">
-                {feedback.type === 'ENCOURAGE' && <span className="animate-bounce inline-block text-yellow-200">{t('msg_almost_there', lang)}</span>}
+            {/* Encouragement Text */}
+            <div className="absolute bottom-8 text-[10px] font-bold text-white/90 uppercase tracking-widest px-4">
+                {feedback.type === 'ENCOURAGE' && <span className="animate-bounce inline-block">{t('msg_almost_there', lang)}</span>}
             </div>
         </div>
       </div>
 
-      {/* Stem */}
-      <div className={`absolute top-6 left-1/2 transform -translate-x-1/2 z-20 transition-all duration-300 ${isBroken ? 'grayscale brightness-50' : ''}`}>
-         <div className={`w-10 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors ${isResting ? 'bg-leaf-600' : 'bg-leaf-500'}`}>
-            <div className={`w-2 h-8 rounded-full absolute -top-5 ${isResting ? 'bg-leaf-700' : 'bg-leaf-600'}`}></div>
-            <div className={`w-10 h-4 rounded-full absolute top-2 rotate-12 ${isResting ? 'bg-leaf-600' : 'bg-leaf-500'}`}></div>
-            <div className={`w-10 h-4 rounded-full absolute top-2 -rotate-12 ${isResting ? 'bg-leaf-600' : 'bg-leaf-500'}`}></div>
+      {/* Stem (Leaf) - Adapts color */}
+      <div className={`absolute top-5 left-1/2 transform -translate-x-1/2 z-0 transition-all duration-1000 ${isBroken || isPaused ? 'grayscale brightness-150' : ''}`}>
+         <div className={`w-8 h-6 rounded-full flex items-center justify-center shadow-sm transition-colors duration-1000 ${isResting ? 'bg-[#34D399]' : 'bg-[#6EE7B7]'}`}>
+            <div className={`w-1.5 h-6 rounded-full absolute -top-4 transition-colors duration-1000 ${isResting ? 'bg-[#10B981]' : 'bg-[#34D399]'}`}></div>
+            <div className={`w-8 h-3 rounded-full absolute top-1 rotate-12 transition-colors duration-1000 ${isResting ? 'bg-[#059669]' : 'bg-[#34D399]'}`}></div>
+            <div className={`w-8 h-3 rounded-full absolute top-1 -rotate-12 transition-colors duration-1000 ${isResting ? 'bg-[#059669]' : 'bg-[#34D399]'}`}></div>
          </div>
       </div>
 
