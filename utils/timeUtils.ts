@@ -1,5 +1,6 @@
 
 
+
 import { SessionRecord } from "../types";
 import { Language } from "../types";
 
@@ -98,7 +99,8 @@ export const calculateDayStreak = (history: SessionRecord[]): number => {
 };
 
 /**
- * Calculate longest streak of completed tomatoes within a specific day (or current session)
+ * Calculate longest streak of completed tomatoes within a specific day,
+ * enforcing time continuity.
  */
 export const calculateSessionStreak = (history: SessionRecord[], dateCheck: Date): number => {
   const daysRecords = history
@@ -107,14 +109,46 @@ export const calculateSessionStreak = (history: SessionRecord[], dateCheck: Date
 
   let maxStreak = 0;
   let currentStreak = 0;
+  let lastEndTime = 0;
+
+  // With the new "Protection" logic (2 mins) + "Rest" logic (5-30+ mins), 
+  // the strict gap is theoretically variable.
+  // For statistics history calculation (offline), we use a lenient 60 minutes.
+  // This accounts for a heavy batch (30m rest) + protection (2m) + transition time.
+  // The App's UI enforces strict real-time expiration, but this handles historical data estimation.
+  const MAX_GAP_MS = 60 * 60 * 1000; 
 
   for (const record of daysRecords) {
-    if (record.completed) {
-      currentStreak++;
-      maxStreak = Math.max(maxStreak, currentStreak);
-    } else {
+    // 1. If any record is NOT completed (interrupted), streak breaks immediately.
+    if (!record.completed) {
       currentStreak = 0;
+      lastEndTime = 0;
+      continue;
     }
+
+    // 2. Logic for Completed Records
+    const startTime = record.timestamp;
+    const durationMs = record.durationMinutes * 60 * 1000;
+    
+    if (currentStreak === 0) {
+      // Starting a new streak
+      currentStreak = 1;
+    } else {
+      // Check time gap from previous tomato
+      const gap = startTime - lastEndTime;
+      
+      // If gap is reasonable (<= 60 mins), increment streak
+      if (gap <= MAX_GAP_MS) {
+        currentStreak++;
+      } else {
+        // Gap too long (e.g. Lunch break), reset streak to 1 (counting this current one)
+        currentStreak = 1;
+      }
+    }
+
+    // Update pointers
+    lastEndTime = startTime + durationMs;
+    maxStreak = Math.max(maxStreak, currentStreak);
   }
   
   return maxStreak;

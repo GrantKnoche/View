@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 
 // Optimized App Logo - Cute Tomato Face - Larger and cleaner
@@ -295,5 +296,12 @@ export const TargetIcon = ({ className = "w-6 h-6" }: { className?: string }) =>
     <circle cx="12" cy="12" r="10"></circle>
     <circle cx="12" cy="12" r="6" fill="currentColor" className="opacity-20"></circle>
     <circle cx="12" cy="12" r="2" fill="currentColor"></circle>
+  </svg>
+);
+
+export const UserIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+    <circle cx="12" cy="7" r="4"></circle>
   </svg>
 );

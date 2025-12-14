@@ -2,12 +2,24 @@
 import { GoogleGenAI } from "@google/genai";
 import { Language } from "../types";
 
+const getApiKey = () => {
+    // Safely check for process.env in various environments
+    try {
+        if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+            return process.env.API_KEY;
+        }
+    } catch (e) {
+        // Ignore reference errors
+    }
+    return '';
+};
+
 const getAiClient = () => {
     // SECURITY: Use system environment variable for API Key
-    // Strictly adhere to system rule process.env.API_KEY
-    const key = process.env.API_KEY;
+    const key = getApiKey();
     
     if (!key) {
+        // Return a dummy client or throw specific error handled by UI
         throw new Error("Missing API Key.");
     }
     return new GoogleGenAI({ apiKey: key });
@@ -15,7 +27,6 @@ const getAiClient = () => {
 
 /**
  * Generate a background image using Gemini 2.5 Flash Image.
- * (Keeping previous logic for image gen)
  */
 export const generateBackgroundImage = async (prompt: string, previousImageBase64?: string): Promise<string | null> => {
     try {
@@ -56,12 +67,10 @@ export const generateBackgroundImage = async (prompt: string, previousImageBase6
 
 /**
  * Generate a personalized statistics summary.
- * Updated to use gemini-2.5-flash and the new cheerful persona.
  */
 export const generateStatsSummary = async (statsContext: string, lang: Language): Promise<string> => {
     try {
         const ai = getAiClient();
-        // UPDATED MODEL: gemini-2.5-flash
         const model = 'gemini-2.5-flash';
 
         const promptText = `

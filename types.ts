@@ -1,3 +1,5 @@
+
+
 export enum AppMode {
   POMODORO = 'POMODORO', // Countdown
   FLOW = 'FLOW',         // Count-up
@@ -8,6 +10,7 @@ export enum TimerStatus {
   RUNNING = 'RUNNING',
   PAUSED = 'PAUSED',
   RESTING = 'RESTING',
+  STREAK_PROTECTION = 'STREAK_PROTECTION', // New status: 2 minute warning to keep streak
   COMPLETED = 'COMPLETED'
 }
 
@@ -24,7 +27,8 @@ export type ThemeColor = 'red' | 'green' | 'blue';
 
 export type Language = 'en' | 'zh';
 
-export type AppView = 'TIMER' | 'STATS' | 'ACHIEVEMENTS';
+// Added USER view
+export type AppView = 'TIMER' | 'STATS' | 'ACHIEVEMENTS' | 'USER';
 
 export interface SessionRecord {
   id: string;
@@ -35,14 +39,14 @@ export interface SessionRecord {
 }
 
 // Achievement System Types
-export type AchievementCategory = 'QUANTITY' | 'CONTINUITY' | 'HABIT' | 'GROWTH';
+export type AchievementCategory = 'QUANTITY' | 'CONTINUITY' | 'HABIT' | 'GROWTH' | 'FUN';
 
 export type AchievementRarity = 'COMMON' | 'ADVANCED' | 'RARE' | 'EPIC' | 'LEGENDARY';
 
 export interface Achievement {
   id: string;
   category: AchievementCategory;
-  rarity: AchievementRarity;
+  level: 1 | 2 | 3 | 4 | 5 | 6 | 7; // Rainbow Level: 1=Red, 7=Purple
   titleKey: string;
   descKey: string;
   icon: string; // Emoji or image char
@@ -57,7 +61,7 @@ export interface UnlockedAchievement {
 
 // UI Feedback States
 export interface FeedbackState {
-  type: 'REWARD' | 'BROKEN' | 'ENCOURAGE' | null;
+  type: 'REWARD' | 'BROKEN' | 'ENCOURAGE' | 'ERROR' | 'STREAK_LOST' | null;
   message?: string;
   extraData?: any;
 }

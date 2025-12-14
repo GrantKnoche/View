@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { SessionRecord } from '../types';
+import { STORAGE_KEY_HISTORY, STORAGE_KEY_ACHIEVEMENTS } from '../constants';
 
 interface DevToolsProps {
   mode: 'POMODORO' | 'FLOW';
@@ -15,16 +15,26 @@ export const DevTools: React.FC<DevToolsProps> = ({
   onAddFlowTime, 
   onInjectHistory 
 }) => {
-  // Initial position: roughly right side (window width - 350px)
-  const [position, setPosition] = useState({ x: window.innerWidth - 350, y: 100 });
+  // Initial position
+  const [position, setPosition] = useState({ x: window.innerWidth - 320, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
 
-  // Inputs for Countdown
+  // Inputs
   const [manualMin, setManualMin] = useState('0');
   const [manualSec, setManualSec] = useState('10');
 
-  // 1. Drag Logic
+  // Time Buckets Definition (Hour Ranges) strictly complying with requirements
+  // 00-05, 06-10, 11-12, 13-17, 18-23
+  const TIME_BUCKETS = [
+    { label: 'DeepNight', min: 0, max: 5 },
+    { label: 'Morning', min: 6, max: 10 },
+    { label: 'Noon', min: 11, max: 12 },
+    { label: 'Afternoon', min: 13, max: 17 },
+    { label: 'Night', min: 18, max: 23 },
+  ];
+
+  // --- Drag Logic ---
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     dragOffset.current = {
@@ -41,10 +51,7 @@ export const DevTools: React.FC<DevToolsProps> = ({
         y: e.clientY - dragOffset.current.y
       });
     };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
+    const handleMouseUp = () => setIsDragging(false);
 
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
@@ -56,56 +63,79 @@ export const DevTools: React.FC<DevToolsProps> = ({
     };
   }, [isDragging]);
 
-  // 2. Handlers
+  // --- Actions ---
+
   const handleApplyCountdown = () => {
     const m = parseInt(manualMin) || 0;
     const s = parseInt(manualSec) || 0;
     onSetCountdown(m * 60 + s);
   };
 
-  const handleGenerateData = () => {
+  // Helper to get random time in a specific bucket
+  const getRandomTimeInBucket = (dateBase: Date, bucketIndex: number) => {
+    const bucket = TIME_BUCKETS[bucketIndex];
+    const hour = Math.floor(Math.random() * (bucket.max - bucket.min + 1)) + bucket.min;
+    const minute = Math.floor(Math.random() * 60);
+    const d = new Date(dateBase);
+    d.setHours(hour, minute, 0, 0);
+    return d.getTime();
+  };
+
+  // Function A: Random Scatter (±7 days)
+  // Logic: Loop 7 times. Pick random day [-7, +7]. Pick random bucket. Generate 1.
+  const handleRandomScatter = () => {
     const records: SessionRecord[] = [];
     const today = new Date();
-    
-    // Time Buckets definition
-    const buckets = [
-      { label: 'Dawn', minH: 0, maxH: 5 },
-      { label: 'Morn', minH: 6, maxH: 10 },
-      { label: 'Noon', minH: 11, maxH: 12 },
-      { label: 'Aftn', minH: 13, maxH: 16 },
-      { label: 'Eve', minH: 17, maxH: 18 },
-      { label: 'Night', minH: 19, maxH: 23 },
-    ];
 
-    // Generate 7 random entries
     for (let i = 0; i < 7; i++) {
-      // Random day offset: -7 to +7
-      const dayOffset = Math.floor(Math.random() * 15) - 7;
-      
-      const targetDate = new Date(today);
-      targetDate.setDate(today.getDate() + dayOffset);
+        // Random day offset between -7 and +7 (Range of 15 days)
+        const offset = Math.floor(Math.random() * 15) - 7; 
+        const targetDay = new Date(today);
+        targetDay.setDate(today.getDate() + offset);
 
-      // Random Bucket
-      const bucket = buckets[Math.floor(Math.random() * buckets.length)];
-      
-      // Random hour within bucket
-      const hour = Math.floor(Math.random() * (bucket.maxH - bucket.minH + 1)) + bucket.minH;
-      const minute = Math.floor(Math.random() * 60);
+        // Pick a random valid bucket (0-4)
+        const bucketIdx = Math.floor(Math.random() * TIME_BUCKETS.length);
 
-      targetDate.setHours(hour, minute, 0, 0);
-
-      const record: SessionRecord = {
-        id: crypto.randomUUID(),
-        timestamp: targetDate.getTime(),
-        type: 'TOMATO',
-        durationMinutes: 25,
-        completed: true
-      };
-      records.push(record);
+        // Generate 1 tomato at a random valid time slot in that bucket
+        records.push({
+            id: crypto.randomUUID(),
+            timestamp: getRandomTimeInBucket(targetDay, bucketIdx),
+            type: 'TOMATO',
+            durationMinutes: 25,
+            completed: true
+        });
     }
-
     onInjectHistory(records);
-    alert(`Injected ${records.length} records across buckets! Check Stats.`);
+  };
+
+  // Function B: Add to Today (Random Distribution across 5 buckets)
+  // Logic: Loop `count` times. Pick random bucket. Generate 1.
+  const handleAddToToday = (count: number) => {
+    const records: SessionRecord[] = [];
+    const today = new Date();
+
+    for (let i = 0; i < count; i++) {
+        // Pick a random bucket to distribute load
+        const bucketIdx = Math.floor(Math.random() * TIME_BUCKETS.length);
+        
+        records.push({
+            id: crypto.randomUUID(),
+            timestamp: getRandomTimeInBucket(today, bucketIdx),
+            type: 'TOMATO',
+            durationMinutes: 25,
+            completed: true
+        });
+    }
+    onInjectHistory(records);
+  };
+
+  // Clear Data Logic
+  const handleClearData = () => {
+    if (confirm('🗑️ Clear ALL Data? This will reset the app.')) {
+        localStorage.removeItem(STORAGE_KEY_HISTORY);
+        localStorage.removeItem(STORAGE_KEY_ACHIEVEMENTS);
+        window.location.reload();
+    }
   };
 
   return (
@@ -114,90 +144,86 @@ export const DevTools: React.FC<DevToolsProps> = ({
       style={{ 
         left: position.x, 
         top: position.y,
-        zIndex: 999999, // Extremely high Z-Index
-        border: '2px solid red' // Temporary Debug Border
+        zIndex: 999999, 
+        border: '1px solid rgba(255,255,255,0.1)'
       }}
     >
-      {/* Title Bar (Draggable) */}
+      {/* Title Bar */}
       <div 
         onMouseDown={handleMouseDown}
         className="bg-gray-800 p-2 border-b border-white/10 cursor-move flex justify-between items-center select-none hover:bg-gray-700"
       >
-        <span className="font-bold text-emerald-400">⚡ DEVTOOLS (UNLOCKED)</span>
-        <div className="flex gap-2">
-          <div className="w-2 h-2 rounded-full bg-red-500"></div>
-          <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-        </div>
+        <span className="font-bold text-emerald-400">⚡ DEVTOOLS</span>
+        <button 
+          onClick={handleClearData} 
+          className="px-2 py-0.5 bg-red-900/50 hover:bg-red-600 text-red-100 rounded text-[9px] border border-red-800 transition-colors font-bold"
+        >
+          🗑️ 清空数据
+        </button>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-3 space-y-4 max-h-[400px] overflow-y-auto no-scrollbar">
         
-        {/* Module A: Countdown */}
-        <div className={`space-y-2 ${mode !== 'POMODORO' ? 'opacity-30 pointer-events-none' : ''}`}>
-          <div className="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Countdown Control</div>
+        {/* Module A: Timer Control */}
+        <div className={`space-y-2 ${mode !== 'POMODORO' ? 'opacity-30' : ''}`}>
+          <div className="text-[9px] uppercase text-gray-500 font-bold tracking-wider">Timer Override</div>
           <div className="flex gap-2 items-center">
-            <div className="flex items-center gap-1 bg-white/5 rounded p-1">
-              <input 
-                type="number" 
-                value={manualMin} 
-                onChange={e => setManualMin(e.target.value)}
-                className="w-8 bg-transparent text-right outline-none border-b border-transparent focus:border-emerald-500" 
-              />
-              <span className="text-gray-500">m</span>
-            </div>
-            <div className="flex items-center gap-1 bg-white/5 rounded p-1">
-              <input 
-                type="number" 
-                value={manualSec} 
-                onChange={e => setManualSec(e.target.value)}
-                className="w-8 bg-transparent text-right outline-none border-b border-transparent focus:border-emerald-500" 
-              />
-              <span className="text-gray-500">s</span>
-            </div>
-            <button 
-              onClick={handleApplyCountdown}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1 px-2 rounded transition-colors"
-            >
-              Apply
-            </button>
+            <input 
+                type="number" value={manualMin} onChange={e => setManualMin(e.target.value)}
+                className="w-10 bg-white/10 rounded px-1 py-0.5 text-center" placeholder="m"
+            />
+            <span>:</span>
+            <input 
+                type="number" value={manualSec} onChange={e => setManualSec(e.target.value)}
+                className="w-10 bg-white/10 rounded px-1 py-0.5 text-center" placeholder="s"
+            />
+            <button onClick={handleApplyCountdown} className="flex-1 bg-emerald-700 hover:bg-emerald-600 rounded py-0.5">SET</button>
           </div>
         </div>
 
-        {/* Module B: Flow */}
-        <div className={`space-y-2 ${mode !== 'FLOW' ? 'opacity-30 pointer-events-none' : ''}`}>
-          <div className="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Flow Control (FF)</div>
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { l: '+10s', v: 10 },
-              { l: '+1m', v: 60 },
-              { l: '+2m', v: 120 },
-              { l: '+5m', v: 300 }
-            ].map((btn, i) => (
-              <button 
-                key={i}
-                onClick={() => onAddFlowTime(btn.v)}
-                className="bg-blue-600 hover:bg-blue-500 text-white py-1 rounded text-[10px] font-bold transition-colors"
-              >
-                {btn.l}
-              </button>
-            ))}
-          </div>
+        {/* Module B: Data Generator */}
+        <div className="space-y-2 pt-2 border-t border-white/10">
+           <div className="text-[9px] uppercase text-gray-500 font-bold tracking-wider">Data Injection</div>
+           
+           {/* Scatter */}
+           <button 
+             onClick={handleRandomScatter}
+             className="w-full bg-indigo-900/60 hover:bg-indigo-700 border border-indigo-700 rounded py-1.5 flex items-center justify-center gap-2 transition-colors"
+           >
+              <span>🎲 随机散布 (±7天)</span>
+           </button>
+
+           {/* Today Add */}
+           <div className="flex flex-col gap-1">
+               <span className="text-[9px] text-gray-400">今日加量 (Random 5 Buckets):</span>
+               <div className="grid grid-cols-4 gap-1">
+                  {[1, 2, 5, 10].map(num => (
+                      <button 
+                        key={num} 
+                        onClick={() => handleAddToToday(num)}
+                        className="bg-gray-700 hover:bg-gray-600 rounded py-1 border border-gray-600 transition-colors"
+                      >
+                        +{num}
+                      </button>
+                  ))}
+               </div>
+           </div>
         </div>
 
-        {/* Module C: Data Injection */}
-        <div className="pt-2 border-t border-white/10 space-y-2">
-          <div className="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Smart Data Injection</div>
-          <button 
-            onClick={handleGenerateData}
-            className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 rounded flex items-center justify-center gap-2 transition-colors group"
-          >
-             <span>Generate Test Data</span>
-             <span className="group-hover:rotate-12 transition-transform">🎲</span>
-          </button>
-          <p className="text-[9px] text-gray-500 leading-tight">
-            Injects 7 days of random records (Dawn-Night buckets) into local storage.
-          </p>
+        {/* Module C: Flow Control */}
+        <div className={`space-y-2 pt-2 border-t border-white/10 ${mode !== 'FLOW' ? 'opacity-30' : ''}`}>
+             <div className="text-[9px] uppercase text-gray-500 font-bold tracking-wider">Flow Control</div>
+             <div className="grid grid-cols-4 gap-1">
+                 {[10, 60, 300, 1500].map(sec => (
+                     <button 
+                       key={sec} 
+                       onClick={() => onAddFlowTime(sec)}
+                       className="bg-blue-900/50 hover:bg-blue-700 border border-blue-800 rounded py-1"
+                     >
+                        +{sec < 60 ? `${sec}s` : `${sec/60}m`}
+                     </button>
+                 ))}
+             </div>
         </div>
 
       </div>

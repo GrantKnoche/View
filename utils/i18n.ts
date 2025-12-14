@@ -1,5 +1,7 @@
 
 
+
+
 import { Language } from '../types';
 
 type Dictionary = Record<string, Record<Language, string>>;
@@ -16,6 +18,7 @@ const translations: Dictionary = {
   'status_tomato_batch': { en: 'Tomato {current}/{total}', zh: '第 {current}/{total} 个番茄' },
   'status_flowing': { en: 'Flowing...', zh: '心流进行中...' },
   'status_relax': { en: 'Relax Mode', zh: '休息一下' },
+  'status_streak_protection': { en: 'Keep the Streak!', zh: '保持连击！' },
   'status_focus_msg': { en: 'Stay focused!', zh: '保持专注！' },
   'status_flow_msg': { en: 'Keep flowing...', zh: '保持节奏...' },
   'status_rest_msg': { en: 'Take a break.', zh: '休息时间到。' },
@@ -26,6 +29,7 @@ const translations: Dictionary = {
 
   // Feedback / Toasts
   'msg_broken': { en: 'Tomato interrupted!', zh: '番茄被打断！' },
+  'msg_streak_lost': { en: 'Streak Broken...', zh: '连击中断了...' },
   'msg_almost_there': { en: 'Almost there...', zh: '快完成了...' },
   'msg_reward_base': { en: 'Session Complete!', zh: '专注完成！' },
   'msg_reward_bonus': { en: '+{min}m Bonus!', zh: '+{min} 分钟奖励！' },
@@ -37,6 +41,7 @@ const translations: Dictionary = {
   'nav_stats': { en: 'Stats', zh: '统计' },
   'nav_achievements': { en: 'Awards', zh: '成就' },
   'nav_ai': { en: 'Theme', zh: '主题' },
+  'nav_user': { en: 'User', zh: '我的' },
 
   // Stats
   'stats_title': { en: 'Statistics', zh: '数据统计' },
@@ -121,6 +126,19 @@ const translations: Dictionary = {
   'ai_generating': { en: 'Dreaming...', zh: '正在造梦...' },
   'ai_set_bg': { en: 'Set as Background', zh: '设为壁纸' },
   'ai_reset': { en: 'Reset to Default', zh: '恢复默认' },
+
+  // User / Auth
+  'auth_title': { en: 'User Profile', zh: '用户中心' },
+  'auth_email': { en: 'Email', zh: '邮箱' },
+  'auth_password': { en: 'Password', zh: '密码' },
+  'auth_login': { en: 'Log In', zh: '登录' },
+  'auth_signup': { en: 'Sign Up', zh: '注册' },
+  'auth_logout': { en: 'Log Out', zh: '退出登录' },
+  'auth_welcome': { en: 'Welcome back!', zh: '欢迎回来！' },
+  'auth_desc_login': { en: 'Sync your tomatoes across devices.', zh: '登录以同步你的番茄数据。' },
+  'auth_desc_profile': { en: 'Your data is syncing with the cloud.', zh: '你的数据正在云端同步。' },
+  'auth_success': { en: 'Success!', zh: '操作成功！' },
+  'auth_error': { en: 'Error', zh: '出错了' },
 
   // --- Achievement Items ---
 
